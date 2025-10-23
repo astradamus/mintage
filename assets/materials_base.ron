@@ -1,0 +1,22 @@
+{
+  "base:air": (
+    color_raw: (15, 15, 22, 255),
+  ),
+  "base:stone": (
+    color_raw: (120, 120, 120, 255),
+  ),
+
+  "base:water": (
+    color_raw: (40, 120, 255, 255),
+  ),
+  "base:lava": (
+    color_raw: (255, 120, 40, 255),
+  ),
+  "base:blood": (
+    color_raw: (155, 40, 40, 255),
+  ),
+
+  "base:steam": (
+    color_raw: (200, 200, 200, 255),
+  ),
+}

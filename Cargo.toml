@@ -1,0 +1,11 @@
+[package]
+name = "coinage"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+bitflags = "2"
+ron = "0.11"
+serde = { version = "1", features = ["derive"] }
+macroquad = "0.4"
