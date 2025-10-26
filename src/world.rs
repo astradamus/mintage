@@ -2,6 +2,7 @@
 use macroquad::logging::warn;
 use crate::material::{MaterialId, Material, MaterialDB};
 use crate::physics::PhysicsModule;
+use crate::reaction::{Reaction, ReactionDB};
 
 /// Generic double buffer over any T. We use it for `Vec<Cell>` and `Vec<Entity>`.
 #[derive(Debug)]
@@ -54,6 +55,7 @@ pub struct World {
     pub entities: DoubleBuffer<Vec<Entity>>,
 
     pub materials: MaterialDB,
+    pub reactions: ReactionDB,
 }
 
 impl World {
@@ -66,11 +68,17 @@ impl World {
             .load_ron_file("assets/materials_base.ron", true)
             .expect("failed to load materials");
 
+        let mut reaction_db = ReactionDB::new();
+        (reaction_db)
+            .load_ron_file(&material_db, "assets/reactions_base.ron", true)
+            .expect("failed to load reactions");
+
         Self {
             w, h,
             cells: DoubleBuffer::new(cells),
             entities: DoubleBuffer::new(entities),
             materials: material_db,
+            reactions: reaction_db,
         }
     }
 
@@ -110,6 +118,7 @@ impl World {
             cells: &self.cells.cur,
             entities: &self.entities.cur,
             materials: &self.materials,
+            reactions: &self.reactions,
         };
         let write = WriteCtx {
             w: self.w,
@@ -130,6 +139,7 @@ pub struct ReadCtx<'a> {
     pub cells: &'a [Cell],
     pub entities: &'a [Entity],
     pub materials: &'a MaterialDB,
+    pub reactions: &'a ReactionDB,
 }
 
 impl<'a> ReadCtx<'a> {

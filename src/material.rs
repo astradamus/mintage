@@ -68,6 +68,8 @@ impl MaterialDB {
         self.defs[id.0 as usize].as_ref()
     }
 
+    pub fn get_mat_count(&self) -> usize { self.defs.len() }
+
     pub fn load_ron_file(&mut self, path: &str, purge_missing: bool) -> Result<()> {
         let text = fs::read_to_string(path)?;
         let mut map: HashMap<String, Material> = from_str(&text)?;

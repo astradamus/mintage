@@ -1,16 +1,19 @@
 mod material;
 mod world;
 mod physics;
+mod reaction;
 
 use macroquad::prelude::*;
 use world::{World};
-use physics::{PhysicsEngine, ReactionWaterLava};
-use crate::physics::SteamBehavior;
+use physics::{PhysicsEngine};
+use crate::physics::{BasicReactions, SteamBehavior};
 
 #[macroquad::main("coinage 0.1.0")]
 async fn main() {
-    let w = 32;
-    let h = 16;
+    let multi = 1;
+
+    let w = 32*multi;
+    let h = 16*multi;
 
     let mut world = World::new(w, h);
     let mut phys_eng = PhysicsEngine::new();
@@ -42,13 +45,12 @@ async fn main() {
     // Physics modules
     {
         let (read, mut write) = world.ctx_pair();
-        phys_eng.add(ReactionWaterLava::new(&read));
         phys_eng.add(SteamBehavior::new(&read));
+        phys_eng.add(BasicReactions::new(&read));
     }
 
 
-
-    let tile_size: f32 = 20.0;
+    let tile_size: f32 = 32.0 / multi as f32;
     let world_px_w = (w as f32 * tile_size) as u32;
     let world_px_h = (h as f32 * tile_size) as u32;
 

@@ -1,0 +1,9 @@
+{
+    "base:lava+water=stone+steam": (
+        in_a: "base:lava",
+        in_b: "base:water",
+        out_a: "base:stone",
+        out_b: "base:steam",
+        rate: 1.0,
+    ),
+}

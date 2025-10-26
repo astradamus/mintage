@@ -8,6 +8,11 @@ const NEIGHBORS_8: [(isize, isize); 8] = [
     (-1,  0),          (1,  0),
     (-1,  1), (0,  1), (1,  1),
 ];
+const NEIGHBORS_4: [(isize, isize); 4] = [
+              (0, -1),
+    (-1,  0),          (1,  0),
+              (0,  1),
+];
 
 pub trait PhysicsModule {
     fn name(&self) -> &'static str;
@@ -40,56 +45,7 @@ impl PhysicsEngine {
     }
 }
 
-pub(crate) struct ReactionWaterLava {
-    mat_id_water: MaterialId,
-    mat_id_lava: MaterialId,
-    mat_id_stone: MaterialId,
-    mat_id_steam: MaterialId,
-}
-impl ReactionWaterLava {
-    pub fn new(read: &ReadCtx<'_>) -> Self {
-        Self { // TODO Hot reload support.
-            mat_id_water: read.materials.get_id("base:water").expect("water material not found"),
-            mat_id_lava: read.materials.get_id("base:lava").expect("lava material not found"),
-            mat_id_stone: read.materials.get_id("base:stone").expect("stone material not found"),
-            mat_id_steam: read.materials.get_id("base:steam").expect("steam material not found"),
-        }
-    }
-}
-impl PhysicsModule for ReactionWaterLava {
-
-    fn name(&self) -> &'static str {"ReactionWaterLava"}
-    fn run(&mut self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>) {
-
-        for y in 0..read.h {
-            for x in 0..read.w {
-                let a = read.cell(x,y).mat_id;
-                if (a == self.mat_id_lava) {
-
-                    // Check directions in random order. TODO Seed determinism.
-                    let mut dirs = NEIGHBORS_8;
-                    dirs.shuffle();
-                    for (dx,dy) in dirs {
-                        let nx = x as isize + dx;
-                        let ny = y as isize + dy;
-                        if (!read.contains(nx, ny)) { continue; }
-
-                        let b = read.cell(nx as usize, ny as usize).mat_id;
-                        if (b == self.mat_id_water) {
-                            write.cell_mut(x, y).mat_id = self.mat_id_stone;
-                            write.cell_mut(nx as usize, ny as usize).mat_id = self.mat_id_steam;
-                            // TODO Hmm, one water can convert two lava to steam because of how we check CUR instead of NEXT...
-                            // TODO Hmm, one water can convert two lava to steam because of how we check CUR instead of NEXT...
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-pub(crate) struct SteamBehavior {
+pub struct SteamBehavior {
     mat_id_steam: MaterialId,
     mat_id_air: MaterialId,
 }
@@ -130,6 +86,64 @@ impl PhysicsModule for SteamBehavior {
                         if (b == self.mat_id_air) {
                             write.cell_mut(x, y).mat_id = self.mat_id_air;
                             write.cell_mut(nx as usize, ny as usize).mat_id = self.mat_id_steam;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub struct BasicReactions {
+
+}
+
+impl BasicReactions {
+    pub fn new(read: &ReadCtx<'_>) -> Self {
+        Self { /* TODO Hot reload support.*/ }
+    }
+}
+
+impl PhysicsModule for BasicReactions {
+
+    fn name(&self) -> &'static str {"BasicReactions"}
+    fn run(&mut self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>) {
+
+        for y in 0..read.h {
+            for x in 0..read.w {
+
+                // Get material of this cell.
+                let mat = write.cell_mut(x, y).mat_id;
+
+                // Skip this cell if it's already changed material this frame.
+                if read.cell(x,y).mat_id != mat { continue; }
+
+                // Check neighbors in random order for reactive materials. TODO Seed determinism.
+                let mut dirs = NEIGHBORS_4;
+                dirs.shuffle();
+                for (dx,dy) in dirs {
+                    let nx = x as isize + dx;
+                    let ny = y as isize + dy;
+                    if (!read.contains(nx, ny)) { continue; }
+
+                    // Get material of this neighbor.
+                    let neigh_mat = write.cell_mut(nx as usize, ny as usize).mat_id;
+
+                    // Skip this neighbor if it's already changed material this frame.
+                    if read.cell(nx as usize, ny as usize).mat_id != neigh_mat { continue; }
+
+                    // Check if this neighbor is reactive.
+                    if let Some(react_id) = read.reactions.get_reaction_by_mats(mat, neigh_mat) {
+                        if let Some(react) = read.reactions.get(react_id) {
+
+                            // Reaction found. Sort which cell is a or b.
+                            let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };
+                            let (bx, by) = if react.in_a == mat { (nx as usize, ny as usize) } else { (x, y) };
+
+                            // Apply reaction outputs. TODO Rates!
+                            write.cell_mut(ax, ay).mat_id = react.out_a;
+                            write.cell_mut(bx, by).mat_id = react.out_b;
                             break;
                         }
                     }
