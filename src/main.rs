@@ -8,7 +8,17 @@ use world::{World};
 use physics::{PhysicsEngine};
 use crate::physics::{BasicReactions, SteamBehavior};
 
-#[macroquad::main("coinage 0.1.0")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "coinage 0.1.0".to_owned(),
+        window_width: 1600,
+        window_height: 800,
+        fullscreen: false,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
     let multi = 1;
 
