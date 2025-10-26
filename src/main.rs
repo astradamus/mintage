@@ -45,8 +45,9 @@ async fn main() {
     // Physics modules
     {
         let (read, mut write) = world.ctx_pair();
-        phys_eng.add(SteamBehavior::new(&read));
+        // Reactions must go first, or changes made by other modules will prevent reactions in changed cells.
         phys_eng.add(BasicReactions::new(&read));
+        phys_eng.add(SteamBehavior::new(&read));
     }
 
 

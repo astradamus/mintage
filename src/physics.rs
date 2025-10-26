@@ -64,7 +64,9 @@ impl PhysicsModule for SteamBehavior {
 
         for y in 0..read.h {
             for x in 0..read.w {
-                let a = read.cell(x,y).mat_id;
+
+                // Must check write to ensure we see changes made by other modules.
+                let a = write.cell_mut(x,y).mat_id;
                 if (a == self.mat_id_steam) {
 
                     // Chance to dissipate.
@@ -82,7 +84,7 @@ impl PhysicsModule for SteamBehavior {
                         let ny = y as isize + dy;
                         if (!read.contains(nx, ny)) { continue; }
 
-                        let b = read.cell(nx as usize, ny as usize).mat_id;
+                        let b = write.cell_mut(nx as usize, ny as usize).mat_id;
                         if (b == self.mat_id_air) {
                             write.cell_mut(x, y).mat_id = self.mat_id_air;
                             write.cell_mut(nx as usize, ny as usize).mat_id = self.mat_id_steam;
@@ -117,7 +119,7 @@ impl PhysicsModule for BasicReactions {
                 let mat = write.cell_mut(x, y).mat_id;
 
                 // Skip this cell if it's already changed material this frame.
-                if read.cell(x,y).mat_id != mat { continue; }
+                if read.get_last_frame_cell(x, y).mat_id != mat { continue; }
 
                 // Check neighbors in random order for reactive materials. TODO Seed determinism.
                 let mut dirs = NEIGHBORS_4;
@@ -131,7 +133,7 @@ impl PhysicsModule for BasicReactions {
                     let neigh_mat = write.cell_mut(nx as usize, ny as usize).mat_id;
 
                     // Skip this neighbor if it's already changed material this frame.
-                    if read.cell(nx as usize, ny as usize).mat_id != neigh_mat { continue; }
+                    if read.get_last_frame_cell(nx as usize, ny as usize).mat_id != neigh_mat { continue; }
 
                     // Check if this neighbor is reactive.
                     if let Some(react_id) = read.reactions.get_reaction_by_mats(mat, neigh_mat) {

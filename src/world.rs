@@ -143,7 +143,7 @@ pub struct ReadCtx<'a> {
 }
 
 impl<'a> ReadCtx<'a> {
-    #[inline] pub fn cell(&self, x: usize, y: usize) -> &Cell {
+    #[inline] pub fn get_last_frame_cell(&self, x: usize, y: usize) -> &Cell {
         &self.cells[index(self.w, x, y)]
     }
 
