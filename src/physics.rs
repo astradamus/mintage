@@ -1,5 +1,7 @@
 ﻿use macroquad::prelude::rand;
 use macroquad::rand::{ChooseRandom};
+use serde_json::Value;
+use std::collections::HashMap;
 use crate::material::MaterialId;
 use crate::world::{ReadCtx, World, WriteCtx};
 
@@ -16,17 +18,28 @@ const NEIGHBORS_4: [(isize, isize); 4] = [
 
 pub trait PhysicsModule {
     fn name(&self) -> &'static str;
+    fn apply_config(&mut self, config: &HashMap<String, Value>);
     fn run(&mut self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>);
 }
 
 pub struct PhysicsEngine {
     modules: Vec<Box<dyn PhysicsModule>>,
+    config: HashMap<String, Value>
 }
 
 impl PhysicsEngine {
-    pub fn new() -> Self { Self { modules: vec![] } }
+    pub fn new() -> Self {
+        let cfg: HashMap<String, Value> =
+            ron::de::from_str(include_str!("../assets/config.ron")).unwrap();
 
-    pub fn add<M: PhysicsModule + 'static>(&mut self, m: M) {
+        Self {
+            modules: vec![],
+            config: cfg,
+        }
+    }
+
+    pub fn add<M: PhysicsModule + 'static>(&mut self, mut m: M) {
+        m.apply_config(&self.config);
         self.modules.push(Box::new(m));
     }
 
@@ -48,18 +61,32 @@ impl PhysicsEngine {
 pub struct SteamBehavior {
     mat_id_steam: MaterialId,
     mat_id_air: MaterialId,
+    fade_chance: f32,
 }
 impl SteamBehavior {
     pub fn new(read: &ReadCtx<'_>) -> Self {
         Self { // TODO Hot reload support.
             mat_id_steam: read.materials.get_id("base:steam").expect("steam material not found"),
             mat_id_air: read.materials.get_id("base:air").expect("air material not found"),
+            fade_chance: 0.0,
         }
     }
 }
 impl PhysicsModule for SteamBehavior {
 
     fn name(&self) -> &'static str {"SteamBehavior"}
+
+    fn apply_config(&mut self, config: &HashMap<String, Value>) {
+        if let Some(Value::Number(n)) = config.get("steam_fade_chance") {
+            self.fade_chance =
+                (n.as_f64().unwrap() as f32)
+                .clamp(0.0, 1.0);
+        }
+        else {
+            panic!("Config missing 'steam_fade_chance'!");
+        }
+    }
+
     fn run(&mut self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>) {
 
         for y in 0..read.h {
@@ -69,9 +96,9 @@ impl PhysicsModule for SteamBehavior {
                 let a = write.cell_mut(x,y).mat_id;
                 if (a == self.mat_id_steam) {
 
-                    // Chance to dissipate.
+                    // Chance to fade.
                     let result = rand::gen_range(0.0, 1.0);
-                    if result < 0.2 {
+                    if result < self.fade_chance {
                         write.cell_mut(x, y).mat_id = self.mat_id_air;
                         continue;
                     }
@@ -150,6 +177,7 @@ impl BasicReactions {
 impl PhysicsModule for BasicReactions {
 
     fn name(&self) -> &'static str {"BasicReactions"}
+    fn apply_config(&mut self, config: &HashMap<String, Value>) {}
     fn run(&mut self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>) {
 
         let r = rand::gen_range(0, 4) as usize;
