@@ -105,6 +105,46 @@ impl BasicReactions {
     pub fn new(read: &ReadCtx<'_>) -> Self {
         Self { /* TODO Hot reload support.*/ }
     }
+
+    fn do_loop(&self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>, x: usize, y: usize) {
+
+        // Get material of this cell.
+        let mat = write.cell_mut(x, y).mat_id;
+
+        // Skip this cell if it's already changed material this frame.
+        if read.get_last_frame_cell(x, y).mat_id != mat { return; }
+
+        // Check neighbors in random order for reactive materials. TODO Seed determinism.
+        let mut dirs = NEIGHBORS_4;
+        dirs.shuffle();
+        for (dx,dy) in dirs {
+            let nx = x as isize + dx;
+            let ny = y as isize + dy;
+            if (!read.contains(nx, ny)) { continue; }
+
+            // Get material of this neighbor.
+            let neigh_mat = write.cell_mut(nx as usize, ny as usize).mat_id;
+
+            // Skip this neighbor if it's already changed material this frame.
+            if read.get_last_frame_cell(nx as usize, ny as usize).mat_id != neigh_mat { continue; }
+
+            // Check if this neighbor is reactive.
+            if let Some(react_id) = read.reactions.get_reaction_by_mats(mat, neigh_mat) {
+                if let Some(react) = read.reactions.get(react_id) {
+
+                    // Reaction found. Sort which cell is a or b.
+                    let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };
+                    let (bx, by) = if react.in_a == mat { (nx as usize, ny as usize) } else { (x, y) };
+
+                    // Apply reaction outputs. TODO Rates!
+                    write.cell_mut(ax, ay).mat_id = react.out_a;
+                    write.cell_mut(bx, by).mat_id = react.out_b;
+                    break;
+                }
+            }
+        }
+    }
+
 }
 
 impl PhysicsModule for BasicReactions {
@@ -112,43 +152,35 @@ impl PhysicsModule for BasicReactions {
     fn name(&self) -> &'static str {"BasicReactions"}
     fn run(&mut self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>) {
 
-        for y in 0..read.h {
-            for x in 0..read.w {
+        let r = rand::gen_range(0, 4) as usize;
 
-                // Get material of this cell.
-                let mat = write.cell_mut(x, y).mat_id;
-
-                // Skip this cell if it's already changed material this frame.
-                if read.get_last_frame_cell(x, y).mat_id != mat { continue; }
-
-                // Check neighbors in random order for reactive materials. TODO Seed determinism.
-                let mut dirs = NEIGHBORS_4;
-                dirs.shuffle();
-                for (dx,dy) in dirs {
-                    let nx = x as isize + dx;
-                    let ny = y as isize + dy;
-                    if (!read.contains(nx, ny)) { continue; }
-
-                    // Get material of this neighbor.
-                    let neigh_mat = write.cell_mut(nx as usize, ny as usize).mat_id;
-
-                    // Skip this neighbor if it's already changed material this frame.
-                    if read.get_last_frame_cell(nx as usize, ny as usize).mat_id != neigh_mat { continue; }
-
-                    // Check if this neighbor is reactive.
-                    if let Some(react_id) = read.reactions.get_reaction_by_mats(mat, neigh_mat) {
-                        if let Some(react) = read.reactions.get(react_id) {
-
-                            // Reaction found. Sort which cell is a or b.
-                            let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };
-                            let (bx, by) = if react.in_a == mat { (nx as usize, ny as usize) } else { (x, y) };
-
-                            // Apply reaction outputs. TODO Rates!
-                            write.cell_mut(ax, ay).mat_id = react.out_a;
-                            write.cell_mut(bx, by).mat_id = react.out_b;
-                            break;
-                        }
-                    }
+        // Do loops in different directions to prevent bias, chosen randomly each frame.
+        // TODO Seed determinism.
+        if (r == 0) {
+            for y in 0..read.h {
+                for x in 0..read.w {
+                    self.do_loop(read, write, x, y);
+                }
+            }
+        }
+        else if (r == 1) {
+            for y in (0..read.h).rev() {
+                for x in (0..read.w) {
+                    self.do_loop(read, write, x, y);
+                }
+            }
+        }
+        else if (r == 2) {
+            for y in (0..read.h).rev() {
+                for x in (0..read.w).rev() {
+                    self.do_loop(read, write, x, y);
+                }
+            }
+        }
+        else if (r == 3) {
+            for y in (0..read.h) {
+                for x in (0..read.w).rev() {
+                    self.do_loop(read, write, x, y);
                 }
             }
         }
