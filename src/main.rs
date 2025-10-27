@@ -4,6 +4,7 @@ mod physics;
 mod reaction;
 
 use macroquad::prelude::*;
+use macroquad::rand::srand;
 use world::{World};
 use physics::{PhysicsEngine};
 use crate::physics::{BasicReactions, SteamBehavior};
@@ -20,10 +21,13 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let multi = 1;
+    // Set seed.
+    srand(12345689);
 
-    let w = 32*multi;
-    let h = 16*multi;
+    let multi = 0.5;
+
+    let w = (32.0*multi) as usize;
+    let h = (16.0*multi) as usize;
 
     let mut world = World::new(w, h);
     let mut phys_eng = PhysicsEngine::new();

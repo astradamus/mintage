@@ -1,7 +1,6 @@
-﻿use macroquad::prelude::rand;
-use macroquad::rand::{ChooseRandom};
-use serde_json::Value;
+﻿use serde_json::Value;
 use std::collections::HashMap;
+use macroquad::rand::gen_range;
 use crate::material::MaterialId;
 use crate::world::{ReadCtx, World, WriteCtx};
 
@@ -15,6 +14,29 @@ const NEIGHBORS_4: [(isize, isize); 4] = [
     (-1,  0),          (1,  0),
               (0,  1),
 ];
+
+pub fn try_random_dirs<F>(use_4: bool, mut try_dir: F) -> bool
+where
+    F: FnMut((isize, isize)) -> bool,
+{
+    let mut rem = [0, 1, 2, 3, 4, 5, 6, 7];
+    let mut len = if (use_4) { 4 } else { 8 };
+
+    while len > 0 {
+        let r = gen_range(0, len);
+        let i = rem[r];
+
+        len -= 1;
+        rem.swap(r, len);
+
+        let n = if (use_4) { NEIGHBORS_4[i] } else { NEIGHBORS_8[i] };
+        if try_dir(n) {
+            return true;
+        }
+    }
+
+    false
+}
 
 pub trait PhysicsModule {
     fn name(&self) -> &'static str;
@@ -97,27 +119,26 @@ impl PhysicsModule for SteamBehavior {
                 if (a == self.mat_id_steam) {
 
                     // Chance to fade.
-                    let result = rand::gen_range(0.0, 1.0);
+                    let result = gen_range(0.0, 1.0);
                     if result < self.fade_chance {
                         write.cell_mut(x, y).mat_id = self.mat_id_air;
                         continue;
                     }
 
-                    // Check directions in random order. TODO Seed determinism.
-                    let mut dirs = NEIGHBORS_8;
-                    dirs.shuffle();
-                    for (dx,dy) in dirs {
+                    // Check directions in random order.
+                    let moved = try_random_dirs(false, |(dx, dy)| {
                         let nx = x as isize + dx;
                         let ny = y as isize + dy;
-                        if (!read.contains(nx, ny)) { continue; }
+                        if (!read.contains(nx, ny)) { return false; }
 
                         let b = write.cell_mut(nx as usize, ny as usize).mat_id;
                         if (b == self.mat_id_air) {
                             write.cell_mut(x, y).mat_id = self.mat_id_air;
                             write.cell_mut(nx as usize, ny as usize).mat_id = self.mat_id_steam;
-                            break;
+                            return true;
                         }
-                    }
+                        false
+                    });
                 }
             }
         }
@@ -141,19 +162,17 @@ impl BasicReactions {
         // Skip this cell if it's already changed material this frame.
         if read.get_last_frame_cell(x, y).mat_id != mat { return; }
 
-        // Check neighbors in random order for reactive materials. TODO Seed determinism.
-        let mut dirs = NEIGHBORS_4;
-        dirs.shuffle();
-        for (dx,dy) in dirs {
+        // Check neighbors in random order for reactive materials.
+        let moved = try_random_dirs(true, |(dx, dy)| {
             let nx = x as isize + dx;
             let ny = y as isize + dy;
-            if (!read.contains(nx, ny)) { continue; }
+            if (!read.contains(nx, ny)) { return false; }
 
             // Get material of this neighbor.
             let neigh_mat = write.cell_mut(nx as usize, ny as usize).mat_id;
 
             // Skip this neighbor if it's already changed material this frame.
-            if read.get_last_frame_cell(nx as usize, ny as usize).mat_id != neigh_mat { continue; }
+            if read.get_last_frame_cell(nx as usize, ny as usize).mat_id != neigh_mat { return false; }
 
             // Check if this neighbor is reactive.
             if let Some(react_id) = read.reactions.get_reaction_by_mats(mat, neigh_mat) {
@@ -166,10 +185,11 @@ impl BasicReactions {
                     // Apply reaction outputs. TODO Rates!
                     write.cell_mut(ax, ay).mat_id = react.out_a;
                     write.cell_mut(bx, by).mat_id = react.out_b;
-                    break;
+                    return true;
                 }
             }
-        }
+            false
+        });
     }
 
 }
@@ -180,10 +200,9 @@ impl PhysicsModule for BasicReactions {
     fn apply_config(&mut self, config: &HashMap<String, Value>) {}
     fn run(&mut self, read: &ReadCtx<'_>, write: &mut WriteCtx<'_>) {
 
-        let r = rand::gen_range(0, 4) as usize;
+        let r = gen_range(0, 4) as usize;
 
         // Do loops in different directions to prevent bias, chosen randomly each frame.
-        // TODO Seed determinism.
         if (r == 0) {
             for y in 0..read.h {
                 for x in 0..read.w {
