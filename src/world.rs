@@ -1,10 +1,9 @@
 ﻿use std::mem;
 use macroquad::logging::warn;
 use crate::material::{MaterialId, Material, MaterialDB};
-use crate::physics::PhysicsModule;
-use crate::reaction::{Reaction, ReactionDB};
+use crate::reaction::{ReactionDB};
 
-/// Generic double buffer over any T. We use it for `Vec<Cell>` and `Vec<Entity>`.
+/// Generic double buffer over any T. We use it for `Vec<MaterialId>` and `Vec<Entity>`.
 #[derive(Debug)]
 pub struct DoubleBuffer<T> {
     pub cur: T,
@@ -16,23 +15,13 @@ impl<T: Clone> DoubleBuffer<T> {
         Self { cur: initial.clone(), next: initial }
     }
 
-    /// Copy current into next so modules can do deltas on top.
+    /// Copy current into next so modules can make changes on top.
     pub fn sync(&mut self) {
-        // For Vec<T>, this clones the elements; for POD-ish types it's very fast.
         self.next.clone_from(&self.cur);
     }
 
     pub fn swap(&mut self) {
         mem::swap(&mut self.cur, &mut self.next);
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Cell { pub mat_id: MaterialId }
-
-impl Cell {
-    fn empty() -> Self {
-        Self { mat_id: MaterialId(0) }
     }
 }
 
@@ -51,7 +40,7 @@ pub struct World {
     pub w: usize,
     pub h: usize,
 
-    pub cells: DoubleBuffer<Vec<Cell>>,
+    pub mat_ids: DoubleBuffer<Vec<MaterialId>>,
     pub entities: DoubleBuffer<Vec<Entity>>,
 
     pub materials: MaterialDB,
@@ -60,8 +49,8 @@ pub struct World {
 
 impl World {
     pub fn new(w: usize, h: usize) -> Self {
-        let mut cells = vec![Cell::empty(); w * h];
-        let mut entities = vec![Entity::empty(); w * h];
+        let mat_ids = vec![MaterialId(0); w * h];
+        let entities = vec![Entity::empty(); w * h];
 
         let mut material_db = MaterialDB::new();
         material_db
@@ -75,7 +64,7 @@ impl World {
 
         Self {
             w, h,
-            cells: DoubleBuffer::new(cells),
+            mat_ids: DoubleBuffer::new(mat_ids),
             entities: DoubleBuffer::new(entities),
             materials: material_db,
             reactions: reaction_db,
@@ -83,27 +72,27 @@ impl World {
     }
 
     pub fn sync_all(&mut self) {
-        self.cells.sync();
+        self.mat_ids.sync();
         self.entities.sync();
     }
 
     pub fn swap_all(&mut self) {
-        self.cells.swap();
+        self.mat_ids.swap();
         self.entities.swap();
     }
 
-    pub fn mat_id_at(&self, x: usize, y: usize) -> Option<MaterialId> {
-        if let Some(cell) = self.cells.cur.get(index(self.w, x, y)) {
-            Some(cell.mat_id)
+    pub fn get_curr_mat_id_at(&self, x: usize, y: usize) -> Option<&MaterialId> {
+        if let Some(cell) = self.mat_ids.cur.get(index(self.w, x, y)) {
+            Some(cell)
         }
         else {
-            warn!("tried mat_id_at for out-of-bounds cell: ({x}, {y})");
+            warn!("tried get_curr_mat_id_at for out-of-bounds cell: ({x}, {y})");
             None
         }
     }
 
-    pub fn mat_at(&self, x: usize, y: usize) -> Option<&Material> {
-        if let Some(id) = self.mat_id_at(x, y) {
+    pub fn get_curr_mat_at(&self, x: usize, y: usize) -> Option<&Material> {
+        if let Some(id) = self.get_curr_mat_id_at(x, y) {
             self.materials.get(id)
         }
         else {
@@ -111,46 +100,40 @@ impl World {
         }
     }
 
-    pub fn ctx_pair(&mut self) -> (ReadCtx<'_>, WriteCtx<'_>) {
-        let read = ReadCtx {
+    pub fn ctx_pair(&mut self) -> (CurrCtx<'_>, NextCtx<'_>) {
+        let curr = CurrCtx {
             w: self.w,
             h: self.h,
-            cells: &self.cells.cur,
+            mat_ids: &self.mat_ids.cur,
             entities: &self.entities.cur,
             materials: &self.materials,
             reactions: &self.reactions,
         };
-        let write = WriteCtx {
+        let next = NextCtx {
             w: self.w,
             h: self.h,
-            cells: &mut self.cells.next,
+            mat_ids: &mut self.mat_ids.next,
             entities: &mut self.entities.next,
         };
-        (read, write)
+        (curr, next)
     }
 }
 
 
 
-// ------------------------------ READ CONTEXT -------------------------------
-pub struct ReadCtx<'a> {
+// ------------------------------ CURR FRAME CONTEXT -------------------------------
+pub struct CurrCtx<'a> {
     pub w: usize,
     pub h: usize,
-    pub cells: &'a [Cell],
+    pub mat_ids: &'a [MaterialId],
     pub entities: &'a [Entity],
     pub materials: &'a MaterialDB,
     pub reactions: &'a ReactionDB,
 }
 
-impl<'a> ReadCtx<'a> {
-    #[inline] pub fn get_last_frame_cell(&self, x: usize, y: usize) -> &Cell {
-        &self.cells[index(self.w, x, y)]
-    }
-
-    pub fn try_cell(&self, x: isize, y: isize) -> Option<&Cell> {
-        if !contains(self.w, self.h, x as usize, y as usize) { return None; }
-        let i = index(self.w, x as usize, y as usize);
-        Some(&self.cells[i])
+impl<'a> CurrCtx<'a> {
+    #[inline] pub fn get_mat_id(&self, x: usize, y: usize) -> MaterialId {
+        self.mat_ids[index(self.w, x, y)]
     }
 
     pub fn contains(&self, x: isize, y: isize) -> bool {
@@ -160,26 +143,22 @@ impl<'a> ReadCtx<'a> {
 
 
 
-// ------------------------------ WRITE CONTEXT ------------------------------
+// ------------------------------ NEXT FRAME CONTEXT ------------------------------
 
-pub struct WriteCtx<'a> {
+pub struct NextCtx<'a> {
     pub w: usize,
     pub h: usize,
-    pub cells: &'a mut Vec<Cell>,      // writing into NEXT cells
-    pub entities: &'a mut Vec<Entity>, // writing into NEXT entities
+    pub mat_ids: &'a mut Vec<MaterialId>,
+    pub entities: &'a mut Vec<Entity>,
 }
 
-impl<'a> WriteCtx<'a> {
-    /// Get the cell at the given location, without bounds checking (unsafe!).
-    #[inline] pub fn cell_mut(&mut self, x: usize, y: usize) -> &mut Cell {
-        &mut self.cells[index(self.w, x, y)]
+impl<'a> NextCtx<'a> {
+    #[inline] pub fn set_mat_id(&mut self, x: usize, y: usize, material_id: MaterialId) {
+        self.mat_ids[index(self.w, x, y)] = material_id;
     }
 
-    /// Try to get the cell at given location, or None if out of bounds.
-    pub fn try_cell_mut(&mut self, x: isize, y: isize) -> Option<&mut Cell> {
-        if !contains(self.w, self.h, x as usize, y as usize) { return None; }
-        let i = index(self.w, x as usize, y as usize);
-        Some(&mut self.cells[i])
+    #[inline] pub fn get_mat_id(&mut self, x: usize, y: usize) -> MaterialId {
+        self.mat_ids[index(self.w, x, y)]
     }
 }
 
@@ -190,5 +169,5 @@ impl<'a> WriteCtx<'a> {
 #[inline] fn index(w: usize, x: usize, y: usize) -> usize { y * w + x }
 
 #[inline] fn contains(w: usize, h: usize, x: usize, y: usize) -> bool {
-    x >= 0 && y >= 0 && x < w && y < h
+    x < w && y < h
 }

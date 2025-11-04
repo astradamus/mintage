@@ -24,7 +24,7 @@ async fn main() {
     // Set seed.
     srand(12345689);
 
-    let multi = 8.0;
+    let multi = 16.0;
 
     let w = (32.0*multi) as usize;
     let h = (16.0*multi) as usize;
@@ -34,22 +34,22 @@ async fn main() {
 
     // Basic random map
     {
-        let (read, mut write) = world.ctx_pair();
+        let (curr, mut next) = world.ctx_pair();
 
         for y in 0..h {
             for x in 0..w {
                 let result = rand::gen_range(0.0, 1.0);
                 if result < 0.01 {
-                    write.cell_mut(x, y).mat_id = read.materials.get_id("base:blood").unwrap();
+                    next.set_mat_id(x, y, curr.materials.get_id("base:blood").unwrap());
                 }
                 else if result < 0.2 {
-                    write.cell_mut(x, y).mat_id = read.materials.get_id("base:water").unwrap();
+                    next.set_mat_id(x, y, curr.materials.get_id("base:water").unwrap());
                 }
                 else if result < 0.25 {
-                    write.cell_mut(x, y).mat_id = read.materials.get_id("base:lava").unwrap();
+                    next.set_mat_id(x, y, curr.materials.get_id("base:lava").unwrap());
                 }
                 else {
-                    write.cell_mut(x, y).mat_id = read.materials.get_id("base:air").unwrap();
+                    next.set_mat_id(x, y, curr.materials.get_id("base:air").unwrap());
                 }
             }
         }
@@ -58,14 +58,15 @@ async fn main() {
     }
     // Physics modules
     {
-        let (read, mut write) = world.ctx_pair();
+        let (curr, mut next) = world.ctx_pair();
         // Reactions must go first, or changes made by other modules will prevent reactions in changed cells.
-        phys_eng.add(BasicReactions::new(&read));
-        phys_eng.add(SteamBehavior::new(&read));
+        // TODO Swap between modules.
+        phys_eng.add(BasicReactions::new(&curr));
+        phys_eng.add(SteamBehavior::new(&curr));
     }
 
 
-    let tile_size: f32 = 48.0 / multi as f32;
+    let tile_size: f32 = 64.0 / multi as f32;
     let world_px_w = (w as f32 * tile_size) as u32;
     let world_px_h = (h as f32 * tile_size) as u32;
 
@@ -102,7 +103,7 @@ async fn main() {
         clear_background(Color::from_rgba(10, 12, 16, 255));
         for y in 0..world.h {
             for x in 0..world.w {
-                if let Some(mat) = world.mat_at(x, y) {
+                if let Some(mat) = world.get_curr_mat_at(x, y) {
                     img.set_pixel(x as u32, y as u32, mat.color);
                 }
             }
