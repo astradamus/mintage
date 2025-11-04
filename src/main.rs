@@ -24,7 +24,7 @@ async fn main() {
     // Set seed.
     srand(12345689);
 
-    let multi = 0.5;
+    let multi = 8.0;
 
     let w = (32.0*multi) as usize;
     let h = (16.0*multi) as usize;
@@ -65,18 +65,22 @@ async fn main() {
     }
 
 
-    let tile_size: f32 = 32.0 / multi as f32;
+    let tile_size: f32 = 48.0 / multi as f32;
     let world_px_w = (w as f32 * tile_size) as u32;
     let world_px_h = (h as f32 * tile_size) as u32;
 
     let zoom = vec2(2.0 / world_px_w as f32, 2.0 / world_px_h as f32);
     let target = vec2(world_px_w as f32 / 2.0, world_px_h as f32 / 2.0);
 
-    let rt = render_target(world_px_w, world_px_h);
-    rt.texture.set_filter(FilterMode::Nearest);
-
     // Main loop
     let mut step_timer: u64 = 0;
+    let mut autoplay = true;
+
+    // Map draw
+    let mut img = Image::gen_image_color(w as u16, h as u16, BLACK);
+    let tex = Texture2D::from_image(&img);
+    tex.set_filter(FilterMode::Nearest);
+
     loop {
 
         // Input
@@ -89,28 +93,23 @@ async fn main() {
             phys_eng.step(&mut world);
         }
 
-        // Camera
-        let cam_world = Camera2D {
-            render_target: Some(rt.clone()),
-            zoom,
-            target,
-            ..Default::default()
-        };
-        set_camera(&cam_world);
+        if autoplay {
+            step_timer += 1;
+            phys_eng.step(&mut world);
+        }
 
         // Draw world to render target
         clear_background(Color::from_rgba(10, 12, 16, 255));
         for y in 0..world.h {
             for x in 0..world.w {
                 if let Some(mat) = world.mat_at(x, y) {
-                    let rx = x as f32 * tile_size;
-                    let ry = y as f32 * tile_size;
-                    draw_rectangle(rx, ry, tile_size -1.0, tile_size -1.0, mat.color);
+                    img.set_pixel(x as u32, y as u32, mat.color);
                 }
             }
         }
 
-        // Draw render target to window
+        // Draw texture to screen
+        tex.update(&img);
         set_default_camera();
 
         let sw = screen_width();
@@ -125,7 +124,7 @@ async fn main() {
         let dy = (sh - dest_h) * 0.5;
 
         draw_texture_ex(
-            &rt.texture,
+            &tex,
             dx,
             dy,
             WHITE,
@@ -138,6 +137,13 @@ async fn main() {
         // UI overlay
         draw_text("Space to Step", 10.0, 24.0, 24.0, WHITE);
         draw_text(&format!("Sim Step: {step_timer}"), 10.0, 48.0, 24.0, WHITE);
+
+
+        let fps = get_fps();
+        let total_time = get_time(); // seconds since app start (f64)
+        draw_text(&format!("Seconds: {}", total_time), 10.0, 24.0*3.0, 24.0, WHITE);
+        draw_text(&format!("FPS: {}", step_timer as f64/total_time), 10.0, 24.0*4.0, 24.0, WHITE);
+        draw_text(&format!("FPS: {}", fps), 10.0, 24.0*5.0, 24.0, WHITE);
 
         next_frame().await;
     }
