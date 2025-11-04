@@ -38,6 +38,44 @@ where
     false
 }
 
+/// Iterate over all cells in a random direction, firing the given function for each.
+pub fn rand_iter_dir<F>(w: usize, h: usize, mut iter_fn:F)
+where
+    F: FnMut(usize, usize),
+{
+    let r = gen_range(0, 4) as usize;
+
+    // Do loops in different directions to prevent bias, chosen randomly each frame.
+    if (r == 0) {
+        for y in 0..h {
+            for x in 0..w {
+                iter_fn(x, y);
+            }
+        }
+    }
+    else if (r == 1) {
+        for y in (0..h).rev() {
+            for x in (0..w) {
+                iter_fn(x, y);
+            }
+        }
+    }
+    else if (r == 2) {
+        for y in (0..h).rev() {
+            for x in (0..w).rev() {
+                iter_fn(x, y);
+            }
+        }
+    }
+    else if (r == 3) {
+        for y in (0..h) {
+            for x in (0..w).rev() {
+                iter_fn(x, y);
+            }
+        }
+    }
+}
+
 pub trait PhysicsModule {
     fn name(&self) -> &'static str;
     fn apply_config(&mut self, config: &HashMap<String, Value>);
@@ -111,21 +149,18 @@ impl PhysicsModule for SteamBehavior {
 
     fn run(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>) {
 
-        for y in 0..curr.h {
-            for x in 0..curr.w {
+        rand_iter_dir(curr.w, curr.h, |x, y| {
+            // Must check next to ensure we see changes made by other modules.
+            // TODO Swap between every module.
+            let a = next.get_mat_id(x, y);
+            if (a == self.mat_id_steam) {
 
-                // Must check next to ensure we see changes made by other modules.
-                // TODO Swap between every module.
-                let a = next.get_mat_id(x, y);
-                if (a == self.mat_id_steam) {
-
-                    // Chance to fade.
-                    let result = gen_range(0.0, 1.0);
-                    if result < self.fade_chance {
-                        next.set_mat_id(x, y, self.mat_id_air);
-                        continue;
-                    }
-
+                // Chance to fade.
+                let result = gen_range(0.0, 1.0);
+                if result < self.fade_chance {
+                    next.set_mat_id(x, y, self.mat_id_air);
+                }
+                else {
                     // Check directions in random order.
                     let moved = try_random_dirs(false, |(dx, dy)| {
                         let nx = x as isize + dx;
@@ -142,7 +177,7 @@ impl PhysicsModule for SteamBehavior {
                     });
                 }
             }
-        }
+        });
     }
 }
 
@@ -154,45 +189,6 @@ impl BasicReactions {
     pub fn new(curr: &CurrCtx<'_>) -> Self {
         Self { /* TODO Hot reload support.*/ }
     }
-
-    fn do_loop(&self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>, x: usize, y: usize) {
-
-        // Get material of this cell.
-        let mat = next.get_mat_id(x, y);
-
-        // Skip this cell if it's already changed material this frame.
-        if curr.get_mat_id(x, y) != mat { return; }
-
-        // Check neighbors in random order for reactive materials.
-        let moved = try_random_dirs(true, |(dx, dy)| {
-            let nx = x as isize + dx;
-            let ny = y as isize + dy;
-            if (!curr.contains(nx, ny)) { return false; }
-
-            // Get material of this neighbor.
-            let neigh_mat = next.get_mat_id(nx as usize, ny as usize);
-
-            // Skip this neighbor if it's already changed material this frame.
-            if curr.get_mat_id(nx as usize, ny as usize) != neigh_mat { return false; }
-
-            // Check if this neighbor is reactive.
-            if let Some(react_id) = curr.reactions.get_reaction_by_mats(mat, neigh_mat) {
-                if let Some(react) = curr.reactions.get(react_id) {
-
-                    // Reaction found. Sort which cell is a or b.
-                    let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };
-                    let (bx, by) = if react.in_a == mat { (nx as usize, ny as usize) } else { (x, y) };
-
-                    // Apply reaction outputs. TODO Rates!
-                    next.set_mat_id(ax, ay, react.out_a);
-                    next.set_mat_id(bx, by, react.out_b);
-                    return true;
-                }
-            }
-            false
-        });
-    }
-
 }
 
 impl PhysicsModule for BasicReactions {
@@ -201,36 +197,41 @@ impl PhysicsModule for BasicReactions {
     fn apply_config(&mut self, config: &HashMap<String, Value>) {}
     fn run(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>) {
 
-        let r = gen_range(0, 4) as usize;
+        rand_iter_dir(curr.w, curr.h, |x, y| {
+            // Get material of this cell.
+            let mat = next.get_mat_id(x, y);
 
-        // Do loops in different directions to prevent bias, chosen randomly each frame.
-        if (r == 0) {
-            for y in 0..curr.h {
-                for x in 0..curr.w {
-                    self.do_loop(curr, next, x, y);
+            // Skip this cell if it's already changed material this frame.
+            if curr.get_mat_id(x, y) != mat { return; }
+
+            // Check neighbors in random order for reactive materials.
+            let moved = try_random_dirs(true, |(dx, dy)| {
+                let nx = x as isize + dx;
+                let ny = y as isize + dy;
+                if (!curr.contains(nx, ny)) { return false; }
+
+                // Get material of this neighbor.
+                let neigh_mat = next.get_mat_id(nx as usize, ny as usize);
+
+                // Skip this neighbor if it's already changed material this frame.
+                if curr.get_mat_id(nx as usize, ny as usize) != neigh_mat { return false; }
+
+                // Check if this neighbor is reactive.
+                if let Some(react_id) = curr.reactions.get_reaction_by_mats(mat, neigh_mat) {
+                    if let Some(react) = curr.reactions.get(react_id) {
+
+                        // Reaction found. Sort which cell is a or b.
+                        let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };
+                        let (bx, by) = if react.in_a == mat { (nx as usize, ny as usize) } else { (x, y) };
+
+                        // Apply reaction outputs. TODO Rates!
+                        next.set_mat_id(ax, ay, react.out_a);
+                        next.set_mat_id(bx, by, react.out_b);
+                        return true;
+                    }
                 }
-            }
-        }
-        else if (r == 1) {
-            for y in (0..curr.h).rev() {
-                for x in (0..curr.w) {
-                    self.do_loop(curr, next, x, y);
-                }
-            }
-        }
-        else if (r == 2) {
-            for y in (0..curr.h).rev() {
-                for x in (0..curr.w).rev() {
-                    self.do_loop(curr, next, x, y);
-                }
-            }
-        }
-        else if (r == 3) {
-            for y in (0..curr.h) {
-                for x in (0..curr.w).rev() {
-                    self.do_loop(curr, next, x, y);
-                }
-            }
-        }
+                false
+            });
+        });
     }
 }
