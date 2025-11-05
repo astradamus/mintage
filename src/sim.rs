@@ -1,14 +1,16 @@
-use std::mem;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use crate::material::{MaterialDb, MaterialId};
+use crate::physics::engine::Engine;
+use crate::physics::module_behavior_steam::ModuleBehaviorSteam;
+use crate::physics::module_reactions_basic::ModuleReactionsBasic;
+use crate::reaction::ReactionDb;
+use crate::world::World;
 use arc_swap::ArcSwap;
 use macroquad::math::{f64, u64};
 use macroquad::prelude::get_time;
 use macroquad::rand::gen_range;
-use crate::material::{MaterialDb, MaterialId};
-use crate::physics::{BasicReactions, PhysicsEngine, SteamBehavior};
-use crate::reaction::ReactionDb;
-use crate::world::World;
+use std::mem;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 /// Generic double buffer over any T. We use it for `Vec<MaterialId>` and `Vec<Entity>`.
 #[derive(Debug)]
@@ -110,9 +112,9 @@ impl TpsTracker {
 }
 
 /// Builds world and physics engine.
-pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> (World, PhysicsEngine) {
+pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> (World, Engine) {
     let mut world = World::new(w, h, mat_db, react_db);
-    let mut phys_eng = PhysicsEngine::new();
+    let mut phys_eng = Engine::new();
 
     // Basic random map
     {
@@ -144,8 +146,8 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
         let (curr, mut next) = world.ctx_pair();
         // Reactions must go first, or changes made by other modules will prevent reactions in changed cells.
         // TODO Swap between modules.
-        phys_eng.add(BasicReactions::new(&curr));
-        phys_eng.add(SteamBehavior::new(&curr));
+        phys_eng.add(ModuleReactionsBasic::new(&curr));
+        phys_eng.add(ModuleBehaviorSteam::new(&curr));
     }
     (world, phys_eng)
 }
