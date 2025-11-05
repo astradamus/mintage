@@ -19,9 +19,7 @@ pub struct Reaction {
 }
 
 impl Reaction {
-    pub fn has_in(&self, mat: MaterialId) -> bool {
-        self.in_a == mat || self.in_b == mat
-    }
+
 }
 
 #[derive(Deserialize, Clone, Debug)]
