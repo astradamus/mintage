@@ -4,6 +4,6 @@
         in_b: "base:water",
         out_a: "base:stone",
         out_b: "base:steam",
-        rate: 1.0,
+        rate: 0.75,
     ),
 }
