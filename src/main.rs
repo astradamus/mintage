@@ -1,13 +1,13 @@
 mod material;
-mod world;
 mod physics;
 mod reaction;
+mod sim;
+mod world;
 
+use std::sync::atomic::Ordering;
 use macroquad::prelude::*;
 use macroquad::rand::srand;
-use world::{World};
-use physics::{PhysicsEngine};
-use crate::physics::{BasicReactions, SteamBehavior};
+use sim::{TpsTracker, spawn_sim_thread};
 
 fn window_conf() -> Conf {
     Conf {
@@ -21,89 +21,43 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+
     // Set seed.
     srand(12345689);
 
+    // World size multiplier, for convenient tile size calculations.
     let multi = 16.0;
 
+    // World size in tiles.
     let w = (32.0*multi) as usize;
     let h = (16.0*multi) as usize;
 
-    let mut world = World::new(w, h);
-    let mut phys_eng = PhysicsEngine::new();
-
-    // Basic random map
-    {
-        let (curr, mut next) = world.ctx_pair();
-
-        for y in 0..h {
-            for x in 0..w {
-                let result = rand::gen_range(0.0, 1.0);
-                if result < 0.01 {
-                    next.set_mat_id(x, y, curr.materials.get_id("base:blood").unwrap());
-                }
-                else if result < 0.2 {
-                    next.set_mat_id(x, y, curr.materials.get_id("base:water").unwrap());
-                }
-                else if result < 0.25 {
-                    next.set_mat_id(x, y, curr.materials.get_id("base:lava").unwrap());
-                }
-                else {
-                    next.set_mat_id(x, y, curr.materials.get_id("base:air").unwrap());
-                }
-            }
-        }
-        world.swap_all();
-
-    }
-    // Physics modules
-    {
-        let (curr, mut next) = world.ctx_pair();
-        // Reactions must go first, or changes made by other modules will prevent reactions in changed cells.
-        // TODO Swap between modules.
-        phys_eng.add(BasicReactions::new(&curr));
-        phys_eng.add(SteamBehavior::new(&curr));
-    }
-
-
+    // Tile size in pixels.
     let tile_size: f32 = 64.0 / multi as f32;
     let world_px_w = (w as f32 * tile_size) as u32;
     let world_px_h = (h as f32 * tile_size) as u32;
 
-    let zoom = vec2(2.0 / world_px_w as f32, 2.0 / world_px_h as f32);
-    let target = vec2(world_px_w as f32 / 2.0, world_px_h as f32 / 2.0);
+    // Spawn Sim thread, hold on to shared state.
+    let shared = spawn_sim_thread(w, h);
 
-    // Main loop
-    let mut step_timer: u64 = 0;
-    let mut autoplay = true;
+    // Tracks ticks per second.
+    let mut tps_tracker = TpsTracker::new();
 
-    // Map draw
+    // Render loop.
     let mut img = Image::gen_image_color(w as u16, h as u16, BLACK);
     let tex = Texture2D::from_image(&img);
     tex.set_filter(FilterMode::Nearest);
 
     loop {
 
-        // Input
-        if is_key_pressed(KeyCode::Space) {
-            step_timer += 1;
-            phys_eng.step(&mut world);
-        }
-        if is_key_down(KeyCode::Space) && is_key_down(KeyCode::LeftShift) {
-            step_timer += 1;
-            phys_eng.step(&mut world);
-        }
+        // Get latest snapshot from shared state.
+        let snapshot = shared.current.load();
 
-        if autoplay {
-            step_timer += 1;
-            phys_eng.step(&mut world);
-        }
-
-        // Draw world to render target
+        // Draw world to render target.
         clear_background(Color::from_rgba(10, 12, 16, 255));
-        for y in 0..world.h {
-            for x in 0..world.w {
-                if let Some(mat) = world.get_curr_mat_at(x, y) {
+        for y in 0..snapshot.h {
+            for x in 0..snapshot.w {
+                if let Some(mat) = shared.mat_db.get(&snapshot.mat_id_at(x, y)) {
                     img.set_pixel(x as u32, y as u32, mat.color);
                 }
             }
@@ -136,15 +90,13 @@ async fn main() {
         );
 
         // UI overlay
-        draw_text("Space to Step", 10.0, 24.0, 24.0, WHITE);
-        draw_text(&format!("Sim Step: {step_timer}"), 10.0, 48.0, 24.0, WHITE);
+        let step = shared.tick_count.load(Ordering::Relaxed);
+        let tps = tps_tracker.update(&shared);
+        let total_time = get_time();
 
-
-        let fps = get_fps();
-        let total_time = get_time(); // seconds since app start (f64)
-        draw_text(&format!("Seconds: {}", total_time), 10.0, 24.0*3.0, 24.0, WHITE);
-        draw_text(&format!("FPS: {}", step_timer as f64/total_time), 10.0, 24.0*4.0, 24.0, WHITE);
-        draw_text(&format!("FPS: {}", fps), 10.0, 24.0*5.0, 24.0, WHITE);
+        draw_text(&format!("Sim Step: {}", step),       10.0, 24.0*2.0, 24.0, WHITE);
+        draw_text(&format!("Seconds: {}", total_time),  10.0, 24.0*3.0, 24.0, WHITE);
+        draw_text(&format!("TPS: {}", tps),             10.0, 24.0*4.0, 24.0, WHITE);
 
         next_frame().await;
     }

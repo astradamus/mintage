@@ -3,7 +3,7 @@ use std::fs;
 use anyhow::Result;
 use ron::de::from_str;
 use serde::Deserialize;
-use crate::material::{MaterialDB, MaterialId};
+use crate::material::{MaterialDb, MaterialId};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReactionId(pub u16);
@@ -35,7 +35,7 @@ pub struct ReactionRef {
     pub rate: f32,
 }
 
-pub struct ReactionDB {
+pub struct ReactionDb {
     defs: Vec<Option<Reaction>>,
     by_name: HashMap<String, ReactionId>,
     unused_ids: Vec<u16>,
@@ -43,7 +43,7 @@ pub struct ReactionDB {
     lookup: Vec<Option<ReactionId>>,
 }
 
-impl ReactionDB {
+impl ReactionDb {
     pub fn new() -> Self {
         Self {
             defs: vec![],
@@ -117,7 +117,7 @@ impl ReactionDB {
         self.defs[id.0 as usize].as_ref()
     }
 
-    pub fn load_ron_file(&mut self, material_db: &MaterialDB, path: &str, purge_missing: bool) -> Result<()> {
+    pub fn load_ron_file(&mut self, material_db: &MaterialDb, path: &str, purge_missing: bool) -> Result<()> {
 
         // Setup from MaterialDB
         self.total_material_count = material_db.get_mat_count();

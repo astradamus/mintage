@@ -126,8 +126,8 @@ pub struct SteamBehavior {
 impl SteamBehavior {
     pub fn new(curr: &CurrCtx<'_>) -> Self {
         Self { // TODO Hot reload support.
-            mat_id_steam: curr.materials.get_id("base:steam").expect("steam material not found"),
-            mat_id_air: curr.materials.get_id("base:air").expect("air material not found"),
+            mat_id_steam: curr.mat_db.get_id("base:steam").expect("steam material not found"),
+            mat_id_air: curr.mat_db.get_id("base:air").expect("air material not found"),
             fade_chance: 0.0,
         }
     }
@@ -217,8 +217,8 @@ impl PhysicsModule for BasicReactions {
                 if curr.get_mat_id(nx as usize, ny as usize) != neigh_mat { return false; }
 
                 // Check if this neighbor is reactive.
-                if let Some(react_id) = curr.reactions.get_reaction_by_mats(mat, neigh_mat) {
-                    if let Some(react) = curr.reactions.get(react_id) {
+                if let Some(react_id) = curr.react_db.get_reaction_by_mats(mat, neigh_mat) {
+                    if let Some(react) = curr.react_db.get(react_id) {
 
                         // Reaction found. Sort which cell is a or b.
                         let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };

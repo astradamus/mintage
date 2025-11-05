@@ -10,3 +10,4 @@ ron = "0.11"
 serde = { version = "1", features = ["derive"] }
 macroquad = "0.4"
 serde_json = "1"
+arc-swap = "1"

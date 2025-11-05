@@ -17,13 +17,13 @@ pub struct Material {
     pub color_raw: (u8, u8, u8, u8),
 }
 
-pub struct MaterialDB {
+pub struct MaterialDb {
     defs: Vec<Option<Material>>,
     by_name: HashMap<String, MaterialId>,
     unused_ids: Vec<u16>,
 }
 
-impl MaterialDB {
+impl MaterialDb {
     pub fn new() -> Self {
         Self { defs: vec![], by_name: HashMap::new(), unused_ids: vec![] }
     }
