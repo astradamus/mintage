@@ -9,11 +9,14 @@ use macroquad::prelude::*;
 use macroquad::rand::srand;
 use sim::{TpsTracker, spawn_sim_thread};
 
+// Constants
+const WORLD_TICKS_PER_SECOND: f64 = 20.0;
+
 fn window_conf() -> Conf {
     Conf {
         window_title: "coinage 0.1.0".to_owned(),
-        window_width: 1600,
-        window_height: 800,
+        window_width: 2400,
+        window_height: 1400,
         fullscreen: false,
         ..Default::default()
     }
@@ -94,9 +97,13 @@ async fn main() {
         let tps = tps_tracker.update(&shared);
         let total_time = get_time();
 
-        draw_text(&format!("Sim Step: {}", step),       10.0, 24.0*2.0, 24.0, WHITE);
-        draw_text(&format!("Seconds: {}", total_time),  10.0, 24.0*3.0, 24.0, WHITE);
-        draw_text(&format!("TPS: {}", tps),             10.0, 24.0*4.0, 24.0, WHITE);
+        draw_text(&format!("Sim Step: {}", step),                   10.0, 24.0*1.0, 24.0, BLUE);
+        draw_text(&format!("TPS: {}", tps),                         10.0, 24.0*2.0, 24.0, SKYBLUE);
+        draw_text(&format!("Real Secs: {}", total_time),            10.0, 24.0*3.0, 24.0, SKYBLUE);
+
+        let wtps = WORLD_TICKS_PER_SECOND;
+        draw_text(&format!("SPS: {}", tps / wtps),                  10.0, 24.0*4.0, 24.0, PURPLE);
+        draw_text(&format!("World Secs: {}", step / wtps as u64),   10.0, 24.0*5.0, 24.0, PURPLE);
 
         next_frame().await;
     }
