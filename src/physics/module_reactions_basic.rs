@@ -3,6 +3,7 @@ use crate::physics::util;
 use crate::world::{CurrCtx, NextCtx};
 use serde_json::Value;
 use std::collections::HashMap;
+use macroquad::rand::gen_range;
 
 pub struct ModuleReactionsBasic {
     changed: Vec<bool>,
@@ -54,6 +55,11 @@ impl Module for ModuleReactionsBasic {
                 // Check if this neighbor is reactive.
                 if let Some(react_id) = curr.react_db.get_reaction_by_mats(mat, neigh_mat) {
                     if let Some(react) = curr.react_db.get(react_id) {
+
+                        // Roll dice for rate.
+                        if gen_range(0.0, 1.0) > react.rate {
+                            return false;
+                        }
 
                         // Reaction found. Sort which cell is a or b.
                         let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };
