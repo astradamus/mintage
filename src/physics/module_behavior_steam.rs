@@ -10,6 +10,7 @@ pub struct ModuleBehaviorSteam {
     mat_id_steam: MaterialId,
     mat_id_air: MaterialId,
     fade_chance: f32,
+    changed: Vec<bool>,
 }
 
 impl ModuleBehaviorSteam {
@@ -18,6 +19,7 @@ impl ModuleBehaviorSteam {
             mat_id_steam: curr.mat_db.get_id("base:steam").expect("steam material not found"),
             mat_id_air: curr.mat_db.get_id("base:air").expect("air material not found"),
             fade_chance: 0.0,
+            changed: vec![false; curr.w * curr.h],
         }
     }
 }
@@ -37,33 +39,50 @@ impl Module for ModuleBehaviorSteam {
 
     fn run(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>) {
 
+        // Clear changed.
+        self.changed.fill(false);
+
         util::rand_iter_dir(curr.w, curr.h, |x, y| {
-            // Must check next to ensure we see changes made by other modules.
-            // TODO Swap between every module.
-            let a = next.get_mat_id(x, y);
+
+            // Check if already changed.
+            if (self.changed[y * curr.w + x]) {
+                return;
+            }
+
+            let a = curr.get_mat_id(x, y);
             if (a == self.mat_id_steam) {
 
                 // Chance to fade.
                 let result = gen_range(0.0, 1.0);
                 if result < self.fade_chance {
                     next.set_mat_id(x, y, self.mat_id_air);
+                    self.changed[y * curr.w + x] = true;
+                    return;
                 }
-                else {
-                    // Check directions in random order.
-                    let moved = util::try_random_dirs(false, |(dx, dy)| {
-                        let nx = x as isize + dx;
-                        let ny = y as isize + dy;
-                        if (!curr.contains(nx, ny)) { return false; }
 
-                        let b = next.get_mat_id(nx as usize, ny as usize);
-                        if (b == self.mat_id_air) {
-                            next.set_mat_id(x, y, self.mat_id_air);
-                            next.set_mat_id(nx as usize, ny as usize, self.mat_id_steam);
-                            return true;
-                        }
-                        false
-                    });
-                }
+                // Check directions in random order.
+                util::try_random_dirs(false, |(dx, dy)| {
+                    let nx = x as isize + dx;
+                    let ny = y as isize + dy;
+
+                    // Check out of bounds.
+                    if (!curr.contains(nx, ny)) { return false; }
+
+                    // Check if already changed.
+                    if (self.changed[ny as usize * curr.w + nx as usize]) {
+                        return false;
+                    }
+
+                    let b = curr.get_mat_id(nx as usize, ny as usize);
+                    if (b == self.mat_id_air) {
+                        next.set_mat_id(x, y, self.mat_id_air);
+                        next.set_mat_id(nx as usize, ny as usize, self.mat_id_steam);
+                        self.changed[y * curr.w + x] = true;
+                        self.changed[ny as usize * curr.w + nx as usize] = true;
+                        return true;
+                    }
+                    false
+                });
             }
         });
     }

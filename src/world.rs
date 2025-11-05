@@ -108,19 +108,15 @@ impl<'a> CurrCtx<'a> {
 // ------------------------------ NEXT FRAME CONTEXT ------------------------------
 
 pub struct NextCtx<'a> {
-    pub w: usize,
-    pub h: usize,
-    pub cell_mat_ids: &'a mut Vec<MaterialId>,
-    pub entities: &'a mut Vec<Entity>,
+    w: usize,
+    h: usize,
+    cell_mat_ids: &'a mut Vec<MaterialId>,
+    entities: &'a mut Vec<Entity>,
 }
 
 impl<'a> NextCtx<'a> {
     #[inline] pub fn set_mat_id(&mut self, x: usize, y: usize, material_id: MaterialId) {
         self.cell_mat_ids[index(self.w, x, y)] = material_id;
-    }
-
-    #[inline] pub fn get_mat_id(&mut self, x: usize, y: usize) -> MaterialId {
-        self.cell_mat_ids[index(self.w, x, y)]
     }
 }
 
