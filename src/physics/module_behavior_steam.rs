@@ -1,4 +1,5 @@
 ﻿use crate::material::MaterialId;
+use crate::physics::intent::CellIntent;
 use crate::physics::module::Module;
 use crate::physics::util;
 use crate::world::{CurrCtx, NextCtx};
@@ -10,7 +11,6 @@ pub struct ModuleBehaviorSteam {
     mat_id_steam: MaterialId,
     mat_id_air: MaterialId,
     fade_chance: f32,
-    changed: Vec<bool>,
 }
 
 impl ModuleBehaviorSteam {
@@ -19,7 +19,6 @@ impl ModuleBehaviorSteam {
             mat_id_steam: curr.mat_db.get_id("base:steam").expect("steam material not found"),
             mat_id_air: curr.mat_db.get_id("base:air").expect("air material not found"),
             fade_chance: 0.0,
-            changed: vec![false; curr.w * curr.h],
         }
     }
 }
@@ -39,15 +38,13 @@ impl Module for ModuleBehaviorSteam {
 
     fn run(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>) {
 
-        // Clear changed.
-        self.changed.fill(false);
+    }
+
+    fn gather_intents(&mut self, curr: &CurrCtx<'_>) -> Vec<CellIntent> {
+
+        let mut intents = vec![];
 
         util::rand_iter_dir(curr.w, curr.h, |x, y| {
-
-            // Check if already changed.
-            if (self.changed[y * curr.w + x]) {
-                return;
-            }
 
             let a = curr.get_mat_id(x, y);
             if (a == self.mat_id_steam) {
@@ -55,8 +52,7 @@ impl Module for ModuleBehaviorSteam {
                 // Chance to fade.
                 let result = gen_range(0.0, 1.0);
                 if result < self.fade_chance {
-                    next.set_mat_id(x, y, self.mat_id_air);
-                    self.changed[y * curr.w + x] = true;
+                    intents.push(CellIntent::Transform { cell: (x, y), out: self.mat_id_air });
                     return;
                 }
 
@@ -68,22 +64,16 @@ impl Module for ModuleBehaviorSteam {
                     // Check out of bounds.
                     if (!curr.contains(nx, ny)) { return false; }
 
-                    // Check if already changed.
-                    if (self.changed[ny as usize * curr.w + nx as usize]) {
-                        return false;
-                    }
-
                     let b = curr.get_mat_id(nx as usize, ny as usize);
                     if (b == self.mat_id_air) {
-                        next.set_mat_id(x, y, self.mat_id_air);
-                        next.set_mat_id(nx as usize, ny as usize, self.mat_id_steam);
-                        self.changed[y * curr.w + x] = true;
-                        self.changed[ny as usize * curr.w + nx as usize] = true;
+                        intents.push(CellIntent::Movement { from: (x, y), to: (nx as usize, ny as usize)});
                         return true;
                     }
                     false
                 });
             }
         });
+
+        intents
     }
 }

@@ -114,7 +114,7 @@ impl TpsTracker {
 /// Builds world and physics engine.
 pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> (World, Engine) {
     let mut world = World::new(w, h, mat_db, react_db);
-    let mut phys_eng = Engine::new();
+    let mut phys_eng = Engine::new(mat_db);
 
     // Basic random map
     {

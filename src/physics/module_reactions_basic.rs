@@ -1,19 +1,19 @@
-﻿use crate::physics::module::Module;
+﻿use crate::physics::intent::CellIntent;
+use crate::physics::module::Module;
 use crate::physics::util;
+use crate::physics::util::rand_iter_dir;
 use crate::world::{CurrCtx, NextCtx};
+use macroquad::rand::gen_range;
 use serde_json::Value;
 use std::collections::HashMap;
-use macroquad::rand::gen_range;
 
 pub struct ModuleReactionsBasic {
-    changed: Vec<bool>,
+
 }
 
 impl ModuleReactionsBasic {
     pub fn new(curr: &CurrCtx<'_>) -> Self {
-        Self  {
-            changed: vec![false; curr.w * curr.h],
-        }
+        Self  {}
     }
 }
 
@@ -21,17 +21,13 @@ impl Module for ModuleReactionsBasic {
 
     fn apply_config(&mut self, config: &HashMap<String, Value>) {}
 
-    fn run(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>) {
+    fn run(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>) {}
 
-        // Clear changed.
-        self.changed.fill(false);
+    fn gather_intents(&mut self, curr: &CurrCtx<'_>) -> Vec<CellIntent> {
 
-        util::rand_iter_dir(curr.w, curr.h, |x, y| {
+        let mut intents = vec![];
 
-            // Check if already changed.
-            if (self.changed[y * curr.w + x]) {
-                return;
-            }
+        rand_iter_dir(curr.w, curr.h, |x, y| {
 
             // Get material of this cell.
             let mat = curr.get_mat_id(x, y);
@@ -43,11 +39,6 @@ impl Module for ModuleReactionsBasic {
 
                 // Check out of bounds.
                 if (!curr.contains(nx, ny)) { return false; }
-
-                // Check if already changed.
-                if (self.changed[ny as usize * curr.w + nx as usize]) {
-                    return false;
-                }
 
                 // Get material of this neighbor.
                 let neigh_mat = curr.get_mat_id(nx as usize, ny as usize);
@@ -65,16 +56,20 @@ impl Module for ModuleReactionsBasic {
                         let (ax, ay) = if react.in_a == mat { (x, y) } else { (nx as usize, ny as usize) };
                         let (bx, by) = if react.in_a == mat { (nx as usize, ny as usize) } else { (x, y) };
 
-                        // Apply reaction outputs. TODO Rates!
-                        next.set_mat_id(ax, ay, react.out_a);
-                        next.set_mat_id(bx, by, react.out_b);
-                        self.changed[y * curr.w + x] = true;
-                        self.changed[ny as usize * curr.w + nx as usize] = true;
+                        // Register reaction intent.
+                        intents.push(CellIntent::Reaction {
+                            cell_a: (ax, ay),
+                            cell_b: (bx, by),
+                            out_a: react.out_a,
+                            out_b: react.out_b,
+                        });
                         return true;
                     }
                 }
-                false
+                return false;
             });
         });
+
+        intents
     }
 }
