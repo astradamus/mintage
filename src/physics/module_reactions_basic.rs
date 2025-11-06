@@ -1,19 +1,25 @@
 ﻿use crate::physics::intent::CellIntent;
 use crate::physics::module::Module;
-use crate::physics::util;
-use crate::physics::util::rand_iter_dir;
+use crate::physics::util::{rand_iter_dir, try_random_dirs};
 use crate::world::{CurrCtx, NextCtx};
-use macroquad::rand::gen_range;
 use serde_json::Value;
 use std::collections::HashMap;
+use rand::{Rng, SeedableRng};
+use rand_xoshiro::Xoshiro256PlusPlus;
 
 pub struct ModuleReactionsBasic {
-
+    rng_a: Xoshiro256PlusPlus,
+    rng_b: Xoshiro256PlusPlus,
+    rng_c: Xoshiro256PlusPlus,
 }
 
 impl ModuleReactionsBasic {
-    pub fn new(curr: &CurrCtx<'_>) -> Self {
-        Self  {}
+    pub fn new(curr: &CurrCtx<'_>, rng_seed: u64) -> Self {
+        Self  {
+            rng_a: Xoshiro256PlusPlus::seed_from_u64(rng_seed),
+            rng_b: Xoshiro256PlusPlus::seed_from_u64(rng_seed ^ 0xBBBBBBBBBBBBBBBB),
+            rng_c: Xoshiro256PlusPlus::seed_from_u64(rng_seed ^ 0xCCCCCCCCCCCCCCCC),
+        }
     }
 }
 
@@ -27,13 +33,13 @@ impl Module for ModuleReactionsBasic {
 
         let mut intents = vec![];
 
-        rand_iter_dir(curr.w, curr.h, |x, y| {
+        rand_iter_dir(&mut self.rng_a, curr.w, curr.h, |x, y| {
 
             // Get material of this cell.
             let mat = curr.get_mat_id(x, y);
 
             // Check neighbors in random order for reactive materials.
-            util::try_random_dirs(true, |(dx, dy)| {
+            try_random_dirs(&mut self.rng_b, true, |(dx, dy)| {
                 let nx = x as isize + dx;
                 let ny = y as isize + dy;
 
@@ -48,7 +54,7 @@ impl Module for ModuleReactionsBasic {
                     if let Some(react) = curr.react_db.get(react_id) {
 
                         // Roll dice for rate.
-                        if gen_range(0.0, 1.0) > react.rate {
+                        if self.rng_c.random_range(0.0..1.0) > react.rate {
                             return false;
                         }
 

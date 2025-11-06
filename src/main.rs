@@ -6,7 +6,6 @@ mod world;
 
 use std::sync::atomic::Ordering;
 use macroquad::prelude::*;
-use macroquad::rand::srand;
 use sim::{TpsTracker, spawn_sim_thread};
 
 // Constants
@@ -24,9 +23,6 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-
-    // Set seed.
-    srand(12345689);
 
     // World size multiplier, for convenient tile size calculations.
     let multi = 16.0;

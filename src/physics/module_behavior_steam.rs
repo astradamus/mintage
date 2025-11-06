@@ -1,24 +1,29 @@
 ﻿use crate::material::MaterialId;
 use crate::physics::intent::CellIntent;
 use crate::physics::module::Module;
-use crate::physics::util;
 use crate::world::{CurrCtx, NextCtx};
-use macroquad::rand::gen_range;
 use serde_json::Value;
 use std::collections::HashMap;
+use rand::{Rng, SeedableRng};
+use rand_xoshiro::Xoshiro256PlusPlus;
+use crate::physics::util::{rand_iter_dir, try_random_dirs};
 
 pub struct ModuleBehaviorSteam {
     mat_id_steam: MaterialId,
     mat_id_air: MaterialId,
     fade_chance: f32,
+    rng_a: Xoshiro256PlusPlus,
+    rng_b: Xoshiro256PlusPlus,
 }
 
 impl ModuleBehaviorSteam {
-    pub fn new(curr: &CurrCtx<'_>) -> Self {
-        Self { // TODO Hot reload support.
+    pub fn new(curr: &CurrCtx<'_>, rng_seed: u64) -> Self {
+        Self {
             mat_id_steam: curr.mat_db.get_id("base:steam").expect("steam material not found"),
             mat_id_air: curr.mat_db.get_id("base:air").expect("air material not found"),
             fade_chance: 0.0,
+            rng_a: Xoshiro256PlusPlus::seed_from_u64(rng_seed),
+            rng_b: Xoshiro256PlusPlus::seed_from_u64(rng_seed ^ 0xBBBBBBBBBBBBBBBB),
         }
     }
 }
@@ -44,20 +49,20 @@ impl Module for ModuleBehaviorSteam {
 
         let mut intents = vec![];
 
-        util::rand_iter_dir(curr.w, curr.h, |x, y| {
+        rand_iter_dir(&mut self.rng_a, curr.w, curr.h, |x, y| {
 
             let a = curr.get_mat_id(x, y);
             if (a == self.mat_id_steam) {
 
                 // Chance to fade.
-                let result = gen_range(0.0, 1.0);
+                let result = self.rng_b.random_range(0.0..1.0);
                 if result < self.fade_chance {
                     intents.push(CellIntent::Transform { cell: (x, y), out: self.mat_id_air });
                     return;
                 }
 
                 // Check directions in random order.
-                util::try_random_dirs(false, |(dx, dy)| {
+                try_random_dirs(&mut self.rng_b, false, |(dx, dy)| {
                     let nx = x as isize + dx;
                     let ny = y as isize + dy;
 

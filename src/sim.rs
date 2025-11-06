@@ -7,10 +7,11 @@ use crate::world::World;
 use arc_swap::ArcSwap;
 use macroquad::math::{f64, u64};
 use macroquad::prelude::get_time;
-use macroquad::rand::gen_range;
 use std::mem;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use rand::{Rng, SeedableRng};
+use rand_xoshiro::Xoshiro256PlusPlus;
 
 /// Generic double buffer over any T. We use it for `Vec<MaterialId>` and `Vec<Entity>`.
 #[derive(Debug)]
@@ -116,13 +117,16 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
     let mut world = World::new(w, h, mat_db, react_db);
     let mut phys_eng = Engine::new(mat_db);
 
+    let base_seed = 123456789u64;
+    let mut global_rng = Xoshiro256PlusPlus::seed_from_u64(base_seed);
+
     // Basic random map
     {
         let (curr, mut next) = world.ctx_pair();
 
         for y in 0..h {
             for x in 0..w {
-                let result = gen_range(0.0, 1.0);
+                let result = global_rng.random_range(0.0..1.0);
                 if result < 0.01 {
                     next.set_mat_id(x, y, curr.mat_db.get_id("base:blood").unwrap());
                 }
@@ -144,10 +148,8 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
     // Physics modules
     {
         let (curr, mut next) = world.ctx_pair();
-        // Reactions must go first, or changes made by other modules will prevent reactions in changed cells.
-        // TODO Swap between modules.
-        phys_eng.add(ModuleReactionsBasic::new(&curr));
-        phys_eng.add(ModuleBehaviorSteam::new(&curr));
+        phys_eng.add(ModuleReactionsBasic::new(&curr,   base_seed ^ 0x0123456789ABCDEF));
+        phys_eng.add(ModuleBehaviorSteam::new(&curr,    base_seed ^ 0xF0E1D2C3B4A59687));
     }
     (world, phys_eng)
 }
