@@ -33,19 +33,27 @@ impl Engine {
     }
 
     pub fn step(&mut self, world: &mut World) {
-        // Copy curr buffer to next buffer
+
+        // Copy curr buffer to next buffer.
         world.sync_all();
 
-        // Gather intents from modules in parallel.
+        // Get world contexts.
         let (curr, mut next) = world.ctx_pair();
-        let all_intents: Vec<CellIntent> = self.modules
+
+        // Gather intents from modules in parallel.
+        // Gather order is deterministic within modules.
+        // Intents are applied in the same order as they were gathered.
+        // Earlier intents apply first, blocking later ones.
+        let intents_by_module: Vec<Vec<CellIntent>> = self.modules
             .par_iter_mut()
-            .flat_map_iter(|m| m.gather_intents(&curr))
+            .map(|m| m.gather_intents(&curr))
             .collect();
 
+        // Concatenate intents in module order to preserve determinism.
+        let all_intents: Vec<CellIntent> = intents_by_module.into_iter().flatten().collect();
         self.apply_intents(&curr, &mut next, all_intents);
 
-        // Commit the frame
+        // Commit the frame.
         world.swap_all();
     }
 
