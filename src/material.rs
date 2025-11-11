@@ -18,46 +18,22 @@ pub struct Material {
 }
 
 pub struct MaterialDb {
-    defs: Vec<Option<Material>>,
+    defs: Vec<Material>,
     by_name: HashMap<String, MaterialId>,
-    unused_ids: Vec<u16>,
 }
 
 impl MaterialDb {
     pub fn new() -> Self {
-        Self { defs: vec![], by_name: HashMap::new(), unused_ids: vec![] }
+        Self { defs: vec![], by_name: HashMap::new() }
     }
 
-    fn get_next_id(&mut self) -> MaterialId {
-        if let Some(id) = self.unused_ids.pop() {
-            MaterialId(id)
-        }
-        else {
-            let id = self.defs.len() as u16;
-            self.defs.push(None);
-            MaterialId(id)
-        }
-    }
-
-    /// Insert or update material
-    pub fn upsert(&mut self, m: Material) -> MaterialId {
+    /// Insert a new material.
+    fn insert(&mut self, m: Material) -> MaterialId {
         let name = m.name.clone();
-        if let Some(&id) = self.by_name.get(&name) {
-            self.defs[id.0 as usize] = Some(m);
-            id
-        } else {
-            let id = self.get_next_id();
-            self.by_name.insert(name, id);
-            self.defs[id.0 as usize] = Some(m);
-            id
-        }
-    }
-
-    pub fn remove_by_name(&mut self, name: &str) {
-        if let Some(id) = self.by_name.remove(name) {
-            self.defs[id.0 as usize] = None;
-            self.unused_ids.push(id.0);
-        }
+        let id = MaterialId(self.defs.len() as u16);
+        self.by_name.insert(name, id);
+        self.defs.push(m);
+        id
     }
 
     pub fn get_id(&self, name: &str) -> Option<MaterialId> {
@@ -65,30 +41,19 @@ impl MaterialDb {
     }
 
     pub fn get(&self, id: MaterialId) -> Option<&Material> {
-        self.defs[id.0 as usize].as_ref()
+        self.defs.get(id.0 as usize)
     }
 
     pub fn get_mat_count(&self) -> usize { self.defs.len() }
 
-    pub fn load_ron_file(&mut self, path: &str, purge_missing: bool) -> Result<()> {
+    pub fn load_ron_file(&mut self, path: &str) -> Result<()> {
         let text = fs::read_to_string(path)?;
         let mut map: HashMap<String, Material> = from_str(&text)?;
 
-        let mut seen = std::collections::HashSet::new();
         for (name, mut mat) in map.drain() {
-            mat.name = name.clone(); // populate the skipped field
+            mat.name = name.clone(); // Populate the skipped field.
             mat.color = Color::from_rgba(mat.color_raw.0, mat.color_raw.1, mat.color_raw.2, mat.color_raw.3);
-            seen.insert(name.clone());
-            self.upsert(mat);
-        }
-
-        if purge_missing {
-            let existing: Vec<String> = self.by_name.keys().cloned().collect();
-            for name in existing {
-                if !seen.contains(&name) {
-                    self.remove_by_name(&name);
-                }
-            }
+            self.insert(mat);
         }
 
         Ok(())

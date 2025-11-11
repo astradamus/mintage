@@ -168,14 +168,14 @@ pub fn spawn_sim_thread(w: usize, h: usize) -> Arc<Shared> {
     let mat_db = {
         let mut mdb = MaterialDb::new();
         mdb
-            .load_ron_file("assets/materials_base.ron", true)
+            .load_ron_file("assets/materials_base.ron")
             .expect("failed to load materials");
         Arc::new(mdb)
     };
     let react_db = {
         let mut rdb = ReactionDb::new();
         (rdb)
-            .load_ron_file(&mat_db, "assets/reactions_base.ron", true)
+            .load_ron_file(&mat_db, "assets/reactions_base.ron")
             .expect("failed to load reactions");
         Arc::new(rdb)
     };
