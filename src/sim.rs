@@ -120,7 +120,7 @@ impl TpsTracker {
 /// Builds world and physics engine.
 pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> (World, Engine) {
     let mut world = World::new(w, h, mat_db, react_db);
-    let mut phys_eng = Engine::new(mat_db);
+    let mut phys_eng = Engine::new(mat_db, w, h);
 
     let base_seed = 123456789u64;
     let mut global_rng = Xoshiro256PlusPlus::seed_from_u64(base_seed);

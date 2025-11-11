@@ -12,10 +12,11 @@ pub struct Engine {
     modules: Vec<Box<dyn Module + Send>>,
     config: HashMap<String, Value>,
     mat_id_air: MaterialId,
+    changed: Vec<bool>, // Prevent certain intents from being applied twice.
 }
 
 impl Engine {
-    pub fn new(mat_db: &Arc<MaterialDb>) -> Self {
+    pub fn new(mat_db: &Arc<MaterialDb>, world_w: usize, world_h: usize) -> Self {
         let path = format!("{}/assets/config.ron", env!("CARGO_MANIFEST_DIR"));
         let contents = fs::read_to_string(&path).expect("Missing config: config.ron");
         let cfg: HashMap<String, Value> = ron::de::from_str(&contents).unwrap();
@@ -24,6 +25,7 @@ impl Engine {
             modules: vec![],
             config: cfg,
             mat_id_air: mat_db.get_id("base:air").unwrap(),
+            changed: vec![false; world_w * world_h],
         }
     }
 
@@ -50,11 +52,10 @@ impl Engine {
             .collect();
 
         // Apply outputs in module order to preserve determinism.
-        let mut changed = vec![false; curr.w * curr.h]; // Prevent certain intents from being applied twice.
         for out in outputs {
             match out {
                 ModuleOutput::CellIntents { intents } => {
-                    self.apply_intents(&curr, &mut next, &intents, &mut changed);
+                    self.apply_intents(&curr, &mut next, &intents);
                 }
                 ModuleOutput::DeltaTemp { delta_temp } => {
                     self.apply_delta_temp(&curr, &mut next, &delta_temp);
@@ -62,23 +63,26 @@ impl Engine {
             }
         }
 
+        // Reset changed flags for next frame.
+        self.changed.fill(false);
+
         // Commit the frame.
         world.swap_all();
     }
 
-    fn apply_intents(&self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>, intents: &[CellIntent], changed: &mut [bool]) {
+    fn apply_intents(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>, intents: &[CellIntent]) {
 
         for intent in intents {
             let cells = intent.affected_cells();
 
             // Check if any involved cell was already changed this frame.
-            if cells.iter().any(|(x, y)| changed[y * curr.w + x]) {
+            if cells.iter().any(|(x, y)| self.changed[y * curr.w + x]) {
                 continue; // Skip this intent due to conflict with previous intent.
             }
 
             // Mark cells as changed.
             for (x, y) in &cells {
-                changed[y * curr.w + x] = true;
+                self.changed[y * curr.w + x] = true;
             }
 
             // Apply the action.
