@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
+use crate::physics::module_diffusion_thermal::ModuleDiffusionThermal;
 
 /// Generic double buffer over any T. We use it for `Vec<MaterialId>` and `Vec<Entity>`.
 #[derive(Debug)]
@@ -52,11 +53,15 @@ pub struct Snapshot {
     pub w: usize,
     pub h: usize,
     pub cell_mat_ids: Box<[MaterialId]>,
+    pub cell_temps: Box<[f32]>,
 }
 
 impl Snapshot {
     pub fn mat_id_at(&self, x: usize, y: usize) -> MaterialId {
         self.cell_mat_ids[y * self.w + x]
+    }
+    pub fn temp_at(&self, x: usize, y: usize) -> f32 {
+        self.cell_temps[y * self.w + x]
     }
 }
 
@@ -129,12 +134,14 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
                 let result = global_rng.random_range(0.0..1.0);
                 if result < 0.01 {
                     next.set_mat_id(x, y, curr.mat_db.get_id("base:blood").unwrap());
+                    next.set_temp(x, y, 100000.0);
                 }
                 else if result < 0.2 {
                     next.set_mat_id(x, y, curr.mat_db.get_id("base:water").unwrap());
                 }
                 else if result < 0.25 {
                     next.set_mat_id(x, y, curr.mat_db.get_id("base:lava").unwrap());
+                    next.set_temp(x, y, -20000.0);
                 }
                 else {
                     next.set_mat_id(x, y, curr.mat_db.get_id("base:air").unwrap());
@@ -148,8 +155,9 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
     // Physics modules
     {
         let (curr, mut next) = world.ctx_pair();
-        phys_eng.add(ModuleReactionsBasic::new(&curr,   base_seed ^ 0x0123456789ABCDEF));
-        phys_eng.add(ModuleBehaviorSteam::new(&curr,    base_seed ^ 0xF0E1D2C3B4A59687));
+        phys_eng.add(ModuleDiffusionThermal::new(&curr,     base_seed ^ 0x0FEDCBA123456789));
+        phys_eng.add(ModuleReactionsBasic::new(&curr,       base_seed ^ 0x0123456789ABCDEF));
+        phys_eng.add(ModuleBehaviorSteam::new(&curr,        base_seed ^ 0xF0E1D2C3B4A59687));
     }
     (world, phys_eng)
 }
@@ -175,6 +183,7 @@ pub fn spawn_sim_thread(w: usize, h: usize) -> Arc<Shared> {
         w,
         h,
         cell_mat_ids: vec![MaterialId(0); w * h].into_boxed_slice(),
+        cell_temps: vec![0.0f32; w * h].into_boxed_slice(),
     });
     let shared = Shared::new(initial, mat_db, react_db);
 
@@ -187,6 +196,7 @@ pub fn spawn_sim_thread(w: usize, h: usize) -> Arc<Shared> {
                     w: world.w,
                     h: world.h,
                     cell_mat_ids: world.export_cell_mat_ids_boxed(),
+                    cell_temps: world.export_cell_temps_boxed(),
                 };
                 shared.current.store(Arc::new(snap));
             };

@@ -64,7 +64,7 @@ impl MaterialDb {
         self.by_name.get(name).copied()
     }
 
-    pub fn get(&self, id: &MaterialId) -> Option<&Material> {
+    pub fn get(&self, id: MaterialId) -> Option<&Material> {
         self.defs[id.0 as usize].as_ref()
     }
 

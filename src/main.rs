@@ -10,6 +10,11 @@ use sim::{TpsTracker, spawn_sim_thread};
 
 // Constants
 const WORLD_TICKS_PER_SECOND: f64 = 20.0;
+const COLORS_THERM_GRADIENT: [Color; 3] = [
+    Color::from_rgba(0, 96, 255, 255),
+    Color::from_rgba(115, 115, 115, 255),
+    Color::from_rgba(255, 64, 0, 255),
+];
 
 fn window_conf() -> Conf {
     Conf {
@@ -19,6 +24,26 @@ fn window_conf() -> Conf {
         fullscreen: false,
         ..Default::default()
     }
+}
+
+fn triple_gradient_bun(ratio: f32, bundle: &[Color]) -> Color {
+    triple_gradient(ratio, bundle[0], bundle[1], bundle[2])
+}
+
+fn triple_gradient(ratio: f32, neg: Color, zero: Color, pos: Color) -> Color {
+    let ratio = ratio.clamp(-1.0, 1.0);
+
+    let (from, to, w) = if ratio < 0.0 {
+        (zero, neg, -ratio)
+    } else {
+        (zero, pos, ratio)
+    };
+
+    let r = from.r + (to.r - from.r) * w;
+    let g = from.g + (to.g - from.g) * w;
+    let b = from.b + (to.b - from.b) * w;
+
+    Color::new(r, g, b, 1.0)
 }
 
 #[macroquad::main(window_conf)]
@@ -56,9 +81,13 @@ async fn main() {
         clear_background(Color::from_rgba(10, 12, 16, 255));
         for y in 0..snapshot.h {
             for x in 0..snapshot.w {
-                if let Some(mat) = shared.mat_db.get(&snapshot.mat_id_at(x, y)) {
-                    img.set_pixel(x as u32, y as u32, mat.color);
-                }
+                let t = (snapshot.temp_at(x, y) / 1000.0).clamp(-1.0, 1.0);
+                let rgb = triple_gradient_bun(t, &COLORS_THERM_GRADIENT);
+                img.set_pixel(x as u32, y as u32, rgb);
+
+                // if let Some(mat) = shared.mat_db.get(snapshot.mat_id_at(x, y)) {
+                //     img.set_pixel(x as u32, y as u32, mat.color);
+                // }
             }
         }
 

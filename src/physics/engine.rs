@@ -1,6 +1,6 @@
 ﻿use crate::material::{MaterialDb, MaterialId};
 use crate::physics::intent::CellIntent;
-use crate::physics::module::Module;
+use crate::physics::module::{Module, ModuleOutput};
 use crate::world::{CurrCtx, NextCtx, World};
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use serde_json::Value;
@@ -44,21 +44,29 @@ impl Engine {
         // Gather order is deterministic within modules.
         // Intents are applied in the same order as they were gathered.
         // Earlier intents apply first, blocking later ones.
-        let intents_by_module: Vec<Vec<CellIntent>> = self.modules
+        let outputs: Vec<ModuleOutput> = self.modules
             .par_iter_mut()
-            .map(|m| m.gather_intents(&curr))
+            .map(|m| m.run(&curr))
             .collect();
 
-        // Concatenate intents in module order to preserve determinism.
-        let all_intents: Vec<CellIntent> = intents_by_module.into_iter().flatten().collect();
-        self.apply_intents(&curr, &mut next, all_intents);
+        // Apply outputs in module order to preserve determinism.
+        let mut changed = vec![false; curr.w * curr.h]; // Prevent certain intents from being applied twice.
+        for out in outputs {
+            match out {
+                ModuleOutput::CellIntents { intents } => {
+                    self.apply_intents(&curr, &mut next, &intents, &mut changed);
+                }
+                ModuleOutput::DeltaTemp { delta_temp } => {
+                    self.apply_delta_temp(&curr, &mut next, &delta_temp);
+                }
+            }
+        }
 
         // Commit the frame.
         world.swap_all();
     }
 
-    fn apply_intents(&self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>, mut intents: Vec<CellIntent>) {
-        let mut changed = vec![false; curr.w * curr.h];
+    fn apply_intents(&self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>, intents: &[CellIntent], changed: &mut [bool]) {
 
         for intent in intents {
             let cells = intent.affected_cells();
@@ -75,19 +83,25 @@ impl Engine {
 
             // Apply the action.
             match intent {
-                CellIntent::Transform { cell, out } => {
+                &CellIntent::Transform { cell, out } => {
                     next.set_mat_id(cell.0, cell.1, out);
                 },
-                CellIntent::Reaction { cell_a, cell_b, out_a, out_b } => {
+                &CellIntent::Reaction { cell_a, cell_b, out_a, out_b } => {
                     next.set_mat_id(cell_a.0, cell_a.1, out_a);
                     next.set_mat_id(cell_b.0, cell_b.1, out_b);
                 },
-                CellIntent::Movement { from, to } => {
+                &CellIntent::Movement { from, to } => {
                     let mat = curr.get_mat_id(from.0, from.1);
                     next.set_mat_id(from.0, from.1, self.mat_id_air);
                     next.set_mat_id(to.0, to.1, mat);
                 },
             }
+        }
+    }
+
+    fn apply_delta_temp(&self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>, delta_temp: &[f32]) {
+        for i in 0..(curr.w * curr.h) {
+            next.add_temp_i(i, delta_temp[i]);
         }
     }
 }

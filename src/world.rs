@@ -1,6 +1,5 @@
 ﻿use std::sync::Arc;
-use macroquad::logging::warn;
-use crate::material::{Material, MaterialDb, MaterialId};
+use crate::material::{MaterialDb, MaterialId};
 use crate::reaction::ReactionDb;
 use crate::sim::{DoubleBuffer, Entity};
 
@@ -9,6 +8,7 @@ pub struct World {
     pub h: usize,
 
     pub cell_mat_ids: DoubleBuffer<Vec<MaterialId>>,
+    pub cell_temps: DoubleBuffer<Vec<f32>>,
     pub entities: DoubleBuffer<Vec<Entity>>,
 
     pub mat_db: Arc<MaterialDb>,
@@ -18,11 +18,13 @@ pub struct World {
 impl World {
     pub fn new(w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> Self {
         let cell_mat_ids = vec![MaterialId(0); w * h];
+        let cell_temps = vec![0.0f32; w * h];
         let entities = vec![Entity::empty(); w * h];
 
         Self {
             w, h,
             cell_mat_ids: DoubleBuffer::new(cell_mat_ids),
+            cell_temps: DoubleBuffer::new(cell_temps),
             entities: DoubleBuffer::new(entities),
             mat_db: Arc::clone(mat_db),
             react_db: Arc::clone(react_db),
@@ -31,31 +33,14 @@ impl World {
 
     pub fn sync_all(&mut self) {
         self.cell_mat_ids.sync();
+        self.cell_temps.sync();
         self.entities.sync();
     }
 
     pub fn swap_all(&mut self) {
         self.cell_mat_ids.swap();
+        self.cell_temps.swap();
         self.entities.swap();
-    }
-
-    pub fn get_curr_mat_id_at(&self, x: usize, y: usize) -> Option<&MaterialId> {
-        if let Some(cell) = self.cell_mat_ids.cur.get(index(self.w, x, y)) {
-            Some(cell)
-        }
-        else {
-            warn!("tried get_curr_mat_id_at for out-of-bounds cell: ({x}, {y})");
-            None
-        }
-    }
-
-    pub fn get_curr_mat_at(&self, x: usize, y: usize) -> Option<&Material> {
-        if let Some(id) = self.get_curr_mat_id_at(x, y) {
-            self.mat_db.get(id)
-        }
-        else {
-            None
-        }
     }
 
     pub fn ctx_pair(&mut self) -> (CurrCtx<'_>, NextCtx<'_>) {
@@ -63,6 +48,7 @@ impl World {
             w: self.w,
             h: self.h,
             cell_mat_ids: &self.cell_mat_ids.cur,
+            cell_temps: &self.cell_temps.cur,
             entities: &self.entities.cur,
             mat_db: &self.mat_db,
             react_db: &self.react_db,
@@ -71,6 +57,7 @@ impl World {
             w: self.w,
             h: self.h,
             cell_mat_ids: &mut self.cell_mat_ids.next,
+            cell_temps: &mut self.cell_temps.next,
             entities: &mut self.entities.next,
         };
         (curr, next)
@@ -78,6 +65,10 @@ impl World {
 
     pub fn export_cell_mat_ids_boxed(&self) -> Box<[MaterialId]> {
         self.cell_mat_ids.cur.clone().into_boxed_slice()
+    }
+
+    pub fn export_cell_temps_boxed(&self) -> Box<[f32]> {
+        self.cell_temps.cur.clone().into_boxed_slice()
     }
 }
 
@@ -88,6 +79,7 @@ pub struct CurrCtx<'a> {
     pub w: usize,
     pub h: usize,
     pub cell_mat_ids: &'a [MaterialId],
+    pub cell_temps: &'a [f32],
     pub entities: &'a [Entity],
     pub mat_db: &'a MaterialDb,
     pub react_db: &'a ReactionDb,
@@ -96,6 +88,10 @@ pub struct CurrCtx<'a> {
 impl<'a> CurrCtx<'a> {
     #[inline] pub fn get_mat_id(&self, x: usize, y: usize) -> MaterialId {
         self.cell_mat_ids[index(self.w, x, y)]
+    }
+
+    #[inline] pub fn get_temp(&self, x: usize, y: usize) -> f32 {
+        self.cell_temps[index(self.w, x, y)]
     }
 
     pub fn contains(&self, x: isize, y: isize) -> bool {
@@ -111,12 +107,31 @@ pub struct NextCtx<'a> {
     w: usize,
     h: usize,
     cell_mat_ids: &'a mut Vec<MaterialId>,
+    cell_temps: &'a mut Vec<f32>,
     entities: &'a mut Vec<Entity>,
 }
 
 impl<'a> NextCtx<'a> {
     #[inline] pub fn set_mat_id(&mut self, x: usize, y: usize, material_id: MaterialId) {
         self.cell_mat_ids[index(self.w, x, y)] = material_id;
+    }
+
+    #[inline] pub fn set_temp(&mut self, x: usize, y: usize, temp: f32) {
+        self.cell_temps[index(self.w, x, y)] = temp;
+    }
+
+    /// Uses flattened index, which is sometimes faster than converting to 2D and back.
+    #[inline] pub fn set_temp_i(&mut self, i: usize, temp: f32) {
+        self.cell_temps[i] = temp;
+    }
+
+    #[inline] pub fn add_temp(&mut self, x: usize, y: usize, temp: f32) {
+        self.cell_temps[index(self.w, x, y)] += temp;
+    }
+
+    /// Uses flattened index, which is sometimes faster than converting to 2D and back.
+    #[inline] pub fn add_temp_i(&mut self, i: usize, temp: f32) {
+        self.cell_temps[i] += temp;
     }
 }
 

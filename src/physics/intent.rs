@@ -1,6 +1,6 @@
 ﻿use crate::material::MaterialId;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum CellIntent {
     Transform {
         cell: (usize, usize),

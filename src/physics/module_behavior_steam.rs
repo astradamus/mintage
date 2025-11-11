@@ -1,12 +1,12 @@
 ﻿use crate::material::MaterialId;
 use crate::physics::intent::CellIntent;
-use crate::physics::module::Module;
-use crate::world::{CurrCtx, NextCtx};
-use serde_json::Value;
-use std::collections::HashMap;
+use crate::physics::module::{Module, ModuleOutput};
+use crate::physics::util::{rand_iter_dir, try_random_dirs};
+use crate::world::CurrCtx;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
-use crate::physics::util::{rand_iter_dir, try_random_dirs};
+use serde_json::Value;
+use std::collections::HashMap;
 
 pub struct ModuleBehaviorSteam {
     mat_id_steam: MaterialId,
@@ -41,11 +41,7 @@ impl Module for ModuleBehaviorSteam {
         }
     }
 
-    fn run(&mut self, curr: &CurrCtx<'_>, next: &mut NextCtx<'_>) {
-
-    }
-
-    fn gather_intents(&mut self, curr: &CurrCtx<'_>) -> Vec<CellIntent> {
+    fn run(&mut self, curr: &CurrCtx<'_>) -> ModuleOutput {
 
         let mut intents = vec![];
 
@@ -79,6 +75,6 @@ impl Module for ModuleBehaviorSteam {
             }
         });
 
-        intents
+        ModuleOutput::CellIntents { intents }
     }
 }
