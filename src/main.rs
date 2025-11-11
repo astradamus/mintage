@@ -73,6 +73,8 @@ async fn main() {
     tex.set_filter(FilterMode::Nearest);
 
     loop {
+        // Get current tick count.
+        let step = shared.tick_count.load(Ordering::Relaxed);
 
         // Get latest snapshot from shared state.
         let snapshot = shared.current.load();
@@ -81,13 +83,17 @@ async fn main() {
         clear_background(Color::from_rgba(10, 12, 16, 255));
         for y in 0..snapshot.h {
             for x in 0..snapshot.w {
-                let t = (snapshot.temp_at(x, y) / 1000.0).clamp(-1.0, 1.0);
-                let rgb = triple_gradient_bun(t, &COLORS_THERM_GRADIENT);
-                img.set_pixel(x as u32, y as u32, rgb);
 
-                // if let Some(mat) = shared.mat_db.get(snapshot.mat_id_at(x, y)) {
-                //     img.set_pixel(x as u32, y as u32, mat.color);
-                // }
+                if step % 800 < 800 {
+                    let t = (snapshot.temp_at(x, y) / 1000.0).clamp(-1.0, 1.0);
+                    let rgb = triple_gradient_bun(t, &COLORS_THERM_GRADIENT);
+                    img.set_pixel(x as u32, y as u32, rgb);
+                }
+                else {
+                    if let Some(mat) = shared.mat_db.get(snapshot.mat_id_at(x, y)) {
+                        img.set_pixel(x as u32, y as u32, mat.color);
+                    }
+                }
             }
         }
 
@@ -118,17 +124,28 @@ async fn main() {
         );
 
         // UI overlay
-        let step = shared.tick_count.load(Ordering::Relaxed);
         let tps = tps_tracker.update(&shared);
         let total_time = get_time();
 
-        draw_text(&format!("Sim Step: {}", step),                   10.0, 24.0*1.0, 24.0, BLUE);
-        draw_text(&format!("TPS: {}", tps),                         10.0, 24.0*2.0, 24.0, SKYBLUE);
-        draw_text(&format!("Real Secs: {}", total_time),            10.0, 24.0*3.0, 24.0, SKYBLUE);
+        // COL1
+        draw_text(&format!("Sim Step: {}", step),                                                       10.0, 24.0*1.0, 24.0, BLUE);
+        draw_text(&format!("TPS: {}", tps),                                                             10.0, 24.0*2.0, 24.0, SKYBLUE);
+        draw_text(&format!("Real Secs: {}", total_time),                                                10.0, 24.0*3.0, 24.0, SKYBLUE);
 
         let wtps = WORLD_TICKS_PER_SECOND;
-        draw_text(&format!("SPS: {}", tps / wtps),                  10.0, 24.0*4.0, 24.0, PURPLE);
-        draw_text(&format!("World Secs: {}", step / wtps as u64),   10.0, 24.0*5.0, 24.0, PURPLE);
+        draw_text(&format!("SPS: {}", tps / wtps),                                                      10.0, 24.0*4.0, 24.0, PURPLE);
+        draw_text(&format!("World Secs: {}", step / wtps as u64),                                       10.0, 24.0*5.0, 24.0, PURPLE);
+        draw_text(&format!("World Hours: {}", step as f32 / 60.0 / 60.0 / wtps as f32),                 10.0, 24.0*6.0, 24.0, PURPLE);
+
+        // COL2
+        // draw_text(&format!("Tiles: {} x {}  ({})", w, h, w*h),                                          500.0, 24.0*1.0, 24.0, PURPLE);
+        // let meters_w = w as f32 / 2.0;
+        // let meters_h = h as f32 / 2.0;
+        // draw_text(&format!("Meters: {} x {}  ({})", meters_w, meters_h, meters_w * meters_h),           500.0, 24.0*2.0, 24.0, PURPLE);
+        // let feet_w = meters_w * 3.28084;
+        // let feet_h = meters_h * 3.28084;
+        // draw_text(&format!("Feet: {} x {}  ({})", feet_w, feet_h, feet_w * feet_h),                     500.0, 24.0*3.0, 24.0, PURPLE);
+
 
         next_frame().await;
     }

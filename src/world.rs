@@ -86,12 +86,28 @@ pub struct CurrCtx<'a> {
 }
 
 impl<'a> CurrCtx<'a> {
+
+    #[inline] pub fn get_mat_ids(&self) -> &[MaterialId] {
+        self.cell_mat_ids
+    }
+
+    #[inline] pub fn get_temps(&self) -> &[f32] {
+        self.cell_temps
+    }
+
     #[inline] pub fn get_mat_id(&self, x: usize, y: usize) -> MaterialId {
         self.cell_mat_ids[index(self.w, x, y)]
+    }
+    #[inline] pub fn get_mat_id_i(&self, i: usize) -> MaterialId {
+        self.cell_mat_ids[i]
     }
 
     #[inline] pub fn get_temp(&self, x: usize, y: usize) -> f32 {
         self.cell_temps[index(self.w, x, y)]
+    }
+
+    #[inline] pub fn get_temp_i(&self, i: usize) -> f32 {
+        self.cell_temps[i]
     }
 
     pub fn contains(&self, x: isize, y: isize) -> bool {
