@@ -72,7 +72,14 @@ async fn main() {
     let tex = Texture2D::from_image(&img);
     tex.set_filter(FilterMode::Nearest);
 
+    let mut view_thermal = false;
+
     loop {
+        // Toggle view mode.
+        if is_key_pressed(KeyCode::Space) {
+            view_thermal = !view_thermal;
+        }
+
         // Get current tick count.
         let step = shared.tick_count.load(Ordering::Relaxed);
 
@@ -84,7 +91,7 @@ async fn main() {
         for y in 0..snapshot.h {
             for x in 0..snapshot.w {
 
-                if step % 800 < 800 {
+                if view_thermal {
                     let t = (snapshot.temp_at(x, y) / 1000.0).clamp(-1.0, 1.0);
                     let rgb = triple_gradient_bun(t, &COLORS_THERM_GRADIENT);
                     img.set_pixel(x as u32, y as u32, rgb);
