@@ -10,6 +10,7 @@ use std::collections::HashMap;
 pub struct ModuleReactionsBasic {
     rng_a: Xoshiro256PlusPlus,
     rng_b: Xoshiro256PlusPlus,
+    checkerboard_toggle: bool,
 }
 
 impl ModuleReactionsBasic {
@@ -17,6 +18,7 @@ impl ModuleReactionsBasic {
         Self  {
             rng_a: Xoshiro256PlusPlus::seed_from_u64(rng_seed),
             rng_b: Xoshiro256PlusPlus::seed_from_u64(rng_seed ^ 0xBBBBBBBBBBBBBBBB),
+            checkerboard_toggle: false,
         }
     }
 }
@@ -29,7 +31,14 @@ impl Module for ModuleReactionsBasic {
 
         let mut intents = vec![];
 
+        self.checkerboard_toggle = !self.checkerboard_toggle;
+
         rand_iter_dir(&mut self.rng_a, curr.w, curr.h, |x, y| {
+
+            // Checkerboard: False, skip evens. True, skip odds.
+            if ((x + y) & 1) == self.checkerboard_toggle as usize {
+                return;
+            }
 
             // Get material of this cell.
             let mat = curr.get_mat_id(x, y);
