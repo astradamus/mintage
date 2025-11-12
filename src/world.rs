@@ -63,6 +63,19 @@ impl World {
         (curr, next)
     }
 
+    pub fn ctx_post_run(&self) -> PostRunCtx<'_>{
+        PostRunCtx {
+            w: self.w,
+            h: self.h,
+            curr_cell_mat_ids: &self.cell_mat_ids.cur,
+            next_cell_mat_ids: &self.cell_mat_ids.next,
+            cell_temps: &self.cell_temps.cur,
+            entities: &self.entities.cur,
+            mat_db: &self.mat_db,
+            react_db: &self.react_db,
+        }
+    }
+
     pub fn export_cell_mat_ids_boxed(&self) -> Box<[MaterialId]> {
         self.cell_mat_ids.cur.clone().into_boxed_slice()
     }
@@ -151,7 +164,18 @@ impl<'a> NextCtx<'a> {
     }
 }
 
+// ------------------------------- POST RUN CONTEXT -------------------------------
 
+pub struct PostRunCtx<'a> {
+    pub w: usize,
+    pub h: usize,
+    pub curr_cell_mat_ids: &'a [MaterialId],
+    pub next_cell_mat_ids: &'a [MaterialId],
+    pub cell_temps: &'a [f32],
+    pub entities: &'a [Entity],
+    pub mat_db: &'a MaterialDb,
+    pub react_db: &'a ReactionDb,
+}
 
 // -------------------------------- UTILITIES --------------------------------
 /// Convert a 2D index to 1D.

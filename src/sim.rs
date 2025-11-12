@@ -128,20 +128,32 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
     // Basic random map
     {
         let (curr, mut next) = world.ctx_pair();
-        //
+
+        // for y in 0..h {
+        //     for x in 0..w {
+        //         next.set_mat_id(x, y, curr.mat_db.get_id("base:insulation").unwrap());
+        //         if (x % 10 == 0) && (y % 10 == 0) {
+        //             next.set_temp(x, y, 10000000000.0);
+        //         }
+        //         else {
+        //             next.set_temp(x, y, -10000000.0);
+        //         }
+        //     }
+        // }
+
         // for y in 0..h {
         //     for x in 0..w {
         //         let result = global_rng.random_range(0.0..1.0);
         //         if result < 0.01 {
         //             next.set_mat_id(x, y, curr.mat_db.get_id("base:blood").unwrap());
-        //             next.set_temp(x, y, 100000.0);
+        //             next.set_temp(x, y, 10000000.0);
         //         }
         //         else if result < 0.2 {
         //             next.set_mat_id(x, y, curr.mat_db.get_id("base:water").unwrap());
         //         }
         //         else if result < 0.25 {
         //             next.set_mat_id(x, y, curr.mat_db.get_id("base:lava").unwrap());
-        //             next.set_temp(x, y, -20000.0);
+        //             next.set_temp(x, y, -2000000.0);
         //         }
         //         else {
         //             next.set_mat_id(x, y, curr.mat_db.get_id("base:air").unwrap());
@@ -155,10 +167,17 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
             }
         }
 
-        // next.set_temp(0, 10, 100000.0);
-        // for x in 0..w {
-        //     next.set_mat_id(x, 10, curr.mat_db.get_id("base:diamond").unwrap());
-        // }
+        next.set_temp(0, 10, 100000.0);
+        for x in 0..w {
+            next.set_mat_id(x, 10, curr.mat_db.get_id("base:diamond").unwrap());
+        }
+
+        for y in 0..h {
+            next.set_mat_id(60, y, curr.mat_db.get_id("base:diamond").unwrap());
+            next.set_mat_id(120, y, curr.mat_db.get_id("base:diamond").unwrap());
+            next.set_mat_id(180, y, curr.mat_db.get_id("base:diamond").unwrap());
+            next.set_mat_id(240, y, curr.mat_db.get_id("base:diamond").unwrap());
+        }
 
         next.set_temp(0, 22, 10000000000.0);
         next.set_temp(w-1, 22, -10000000000.0);

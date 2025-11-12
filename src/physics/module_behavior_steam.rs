@@ -2,7 +2,7 @@
 use crate::physics::intent::CellIntent;
 use crate::physics::module::{Module, ModuleOutput};
 use crate::physics::util::{rand_iter_dir, try_random_dirs};
-use crate::world::CurrCtx;
+use crate::world::{CurrCtx, PostRunCtx};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use serde_json::Value;
@@ -77,4 +77,6 @@ impl Module for ModuleBehaviorSteam {
 
         ModuleOutput::CellIntents { intents }
     }
+
+    fn post_run(&mut self, post: &PostRunCtx<'_>, changed_cells: &[usize]) {}
 }

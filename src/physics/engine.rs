@@ -12,7 +12,8 @@ pub struct Engine {
     modules: Vec<Box<dyn Module + Send>>,
     config: HashMap<String, Value>,
     mat_id_air: MaterialId,
-    changed: Vec<bool>, // Prevent certain intents from being applied twice.
+    changed_dense: Vec<bool>,
+    changed_sparse: Vec<usize>,
 }
 
 impl Engine {
@@ -25,7 +26,8 @@ impl Engine {
             modules: vec![],
             config: cfg,
             mat_id_air: mat_db.get_id("base:air").unwrap(),
-            changed: vec![false; world_w * world_h],
+            changed_dense: vec![false; world_w * world_h],
+            changed_sparse: vec![],
         }
     }
 
@@ -63,8 +65,19 @@ impl Engine {
             }
         }
 
+        // Get post-run context.
+        let post = world.ctx_post_run();
+
+        // Let modules run post-step updates. Some modules want to pre-compute values for speed.
+        self.modules
+            .par_iter_mut()
+            .for_each(|m| m.post_run(&post, self.changed_sparse.as_slice()));
+
         // Reset changed flags for next frame.
-        self.changed.fill(false);
+        for &i in &self.changed_sparse {
+            self.changed_dense[i] = false;
+        }
+        self.changed_sparse.clear();
 
         // Commit the frame.
         world.swap_all();
@@ -76,13 +89,15 @@ impl Engine {
             let cells = intent.affected_cells();
 
             // Check if any involved cell was already changed this frame.
-            if cells.iter().any(|(x, y)| self.changed[y * curr.w + x]) {
+            if cells.iter().any(|(x, y)| self.changed_dense[y * curr.w + x]) {
                 continue; // Skip this intent due to conflict with previous intent.
             }
 
             // Mark cells as changed.
             for (x, y) in &cells {
-                self.changed[y * curr.w + x] = true;
+                let i = y * curr.w + x;
+                self.changed_dense[i] = true;
+                self.changed_sparse.push(i);
             }
 
             // Apply the action.
