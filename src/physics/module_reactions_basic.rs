@@ -1,6 +1,6 @@
 ﻿use crate::physics::intent::CellIntent;
 use crate::physics::module::{Module, ModuleOutput};
-use crate::physics::util::{rand_iter_dir, try_random_dirs};
+use crate::physics::util::{rand_iter_dir, NEIGHBORS_4};
 use crate::world::{CurrCtx, PostRunCtx};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -10,7 +10,6 @@ use std::collections::HashMap;
 pub struct ModuleReactionsBasic {
     rng_a: Xoshiro256PlusPlus,
     rng_b: Xoshiro256PlusPlus,
-    rng_c: Xoshiro256PlusPlus,
 }
 
 impl ModuleReactionsBasic {
@@ -18,7 +17,6 @@ impl ModuleReactionsBasic {
         Self  {
             rng_a: Xoshiro256PlusPlus::seed_from_u64(rng_seed),
             rng_b: Xoshiro256PlusPlus::seed_from_u64(rng_seed ^ 0xBBBBBBBBBBBBBBBB),
-            rng_c: Xoshiro256PlusPlus::seed_from_u64(rng_seed ^ 0xCCCCCCCCCCCCCCCC),
         }
     }
 }
@@ -36,13 +34,17 @@ impl Module for ModuleReactionsBasic {
             // Get material of this cell.
             let mat = curr.get_mat_id(x, y);
 
-            // Check neighbors in random order for reactive materials.
-            try_random_dirs(&mut self.rng_b, true, |(dx, dy)| {
+            // Check neighbors for reactive materials.
+            // TODO Was doing this in random order, but fixed order is SO MUCH FASTER.
+            // TODO Keep an eye on, I think it might be okay as fixed order. Bias probably not noticeable?
+            for neighbor in NEIGHBORS_4 {
+                let dx = neighbor.0;
+                let dy = neighbor.1;
                 let nx = x as isize + dx;
                 let ny = y as isize + dy;
 
                 // Check out of bounds.
-                if (!curr.contains(nx, ny)) { return false; }
+                if (!curr.contains(nx, ny)) { continue; }
 
                 // Get material of this neighbor.
                 let neigh_mat = curr.get_mat_id(nx as usize, ny as usize);
@@ -52,8 +54,8 @@ impl Module for ModuleReactionsBasic {
                     if let Some(react) = curr.react_db.get(react_id) {
 
                         // Roll dice for rate.
-                        if self.rng_c.random_range(0.0..1.0) > react.rate {
-                            return false;
+                        if self.rng_b.random_range(0.0..1.0) > react.rate {
+                            continue;
                         }
 
                         // Reaction found. Sort which cell is a or b.
@@ -67,11 +69,10 @@ impl Module for ModuleReactionsBasic {
                             out_a: react.out_a,
                             out_b: react.out_b,
                         });
-                        return true;
+                        break;
                     }
                 }
-                return false;
-            });
+            }
         });
 
         ModuleOutput::CellIntents { intents }
