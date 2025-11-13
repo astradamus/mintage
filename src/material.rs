@@ -5,10 +5,11 @@ use macroquad::color::Color;
 use ron::de::from_str;
 use serde::Deserialize;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct MaterialId(pub u16);
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Default, Clone, Debug)]
+#[serde(default)]
 pub struct Material {
     #[serde(skip)]
     pub name: String,
@@ -16,6 +17,16 @@ pub struct Material {
     pub color: Color,
     pub color_raw: (u8, u8, u8, u8),
     pub diffusivity: f32,
+
+    #[serde(skip)]
+    pub transform_cold_mat_id: Option<MaterialId>,
+    pub transform_cold_mat_name: String,
+    pub transform_cold_temp: f32,
+
+    #[serde(skip)]
+    pub transform_hot_mat_id: Option<MaterialId>,
+    pub transform_hot_mat_name: String,
+    pub transform_hot_temp: f32,
 }
 
 pub struct MaterialDb {
@@ -66,6 +77,7 @@ impl MaterialDb {
         let text = fs::read_to_string(path)?;
         let mut map: HashMap<String, Material> = from_str(&text)?;
 
+        // Build defs from loaded string.
         for (name, mut mat) in map.drain() {
             mat.name = name.clone(); // Populate the skipped field.
             mat.color = Color::from_rgba(mat.color_raw.0, mat.color_raw.1, mat.color_raw.2, mat.color_raw.3);
@@ -75,6 +87,21 @@ impl MaterialDb {
 
         // Build diffusivity lookup.
         self.diffusivity = self.defs.iter().map(|m| m.diffusivity).collect::<Box<[f32]>>();
+
+        // Get material IDs for transforms.
+        let ids: Vec<(Option<MaterialId>, Option<MaterialId>)> = self.defs.iter()
+            .map(|m| {
+                let cold = self.get_id(&m.transform_cold_mat_name);
+                let hot  = self.get_id(&m.transform_hot_mat_name);
+                (cold, hot)
+            })
+            .collect();
+
+        // Assign material IDs for transforms. (Two passes due to borrow checker.)
+        for (mat, (cold, hot)) in self.defs.iter_mut().zip(ids) {
+            mat.transform_cold_mat_id = cold;
+            mat.transform_hot_mat_id  = hot;
+        }
 
         Ok(())
     }

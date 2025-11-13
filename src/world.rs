@@ -162,6 +162,10 @@ impl<'a> NextCtx<'a> {
     #[inline] pub fn add_temp_i(&mut self, i: usize, temp: f32) {
         self.cell_temps[i] += temp;
     }
+
+    #[inline] pub fn peek_future_temp(&self, x: usize, y: usize) -> f32 {
+        self.cell_temps[index(self.w, x, y)]
+    }
 }
 
 // ------------------------------- POST RUN CONTEXT -------------------------------

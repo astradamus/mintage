@@ -13,6 +13,7 @@ use std::sync::Arc;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use crate::physics::module_diffusion_thermal::ModuleDiffusionThermal;
+use crate::physics::module_transforms_thermal::ModuleTransformsThermal;
 
 /// Generic double buffer over any T. We use it for `Vec<MaterialId>` and `Vec<Entity>`.
 #[derive(Debug)]
@@ -193,8 +194,22 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
     // Physics modules
     {
         let (curr, mut next) = world.ctx_pair();
+
+        // Modules are applied in the order they are added. Modules should be okay to run in any order.
+        // However, by necessity it usually makes sense to run them in the following three stages:
+
+        // Stage 1. Things that modify the state (i.e. temperature) of cells.
         phys_eng.add(ModuleDiffusionThermal::new(&curr,     base_seed ^ 0x0FEDCBA123456789));
+
+        // Stage 2. Things that change the material of the cell.
+        phys_eng.add(ModuleTransformsThermal::new(&curr,    base_seed ^ 0x345289A01DEFCB67));
         phys_eng.add(ModuleReactionsBasic::new(&curr,       base_seed ^ 0x0123456789ABCDEF));
+
+        // Stage 3. Things that move cell contents around.
+        // Cell swap intents should be applied last, because they usually want to swap state that was modified by other modules.
+        // For instance, a moving steam particle should carry its temp with it, including changes to that temp this tick.
+        // So we let all the thermal diffusion occur, then move the 'particle', so it can be ready for diffusion next frame.
+        // To do so, it needs to swap the already modified values in next buffer.
         phys_eng.add(ModuleBehaviorSteam::new(&curr,        base_seed ^ 0xF0E1D2C3B4A59687));
     }
     (world, phys_eng)
