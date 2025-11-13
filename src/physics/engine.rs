@@ -109,10 +109,19 @@ impl Engine {
                     next.set_mat_id(cell_a.0, cell_a.1, out_a);
                     next.set_mat_id(cell_b.0, cell_b.1, out_b);
                 },
-                &CellIntent::Movement { from, to } => {
-                    let mat = curr.get_mat_id(from.0, from.1);
-                    next.set_mat_id(from.0, from.1, self.mat_id_air);
-                    next.set_mat_id(to.0, to.1, mat);
+                &CellIntent::MoveSwap { from, to } => {
+                    let mat_from = curr.get_mat_id(from.0, from.1);
+                    let mat_to = curr.get_mat_id(to.0, to.1);
+                    next.set_mat_id(from.0, from.1, mat_to);
+                    next.set_mat_id(to.0, to.1, mat_from);
+
+                    // Peek future temp, because we want to make sure temp changes affect this particle.
+                    // Note that we do not peek future mat id. That's because mat id changes
+                    // prevent move swap intents from being applied in the same tick.
+                    let temp_from = next.peek_future_temp(from.0, from.1);
+                    let temp_to = next.peek_future_temp(to.0, to.1);
+                    next.set_temp(from.0, from.1, temp_to);
+                    next.set_temp(to.0, to.1, temp_from);
                 },
             }
         }

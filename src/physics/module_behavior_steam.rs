@@ -76,7 +76,7 @@ impl Module for ModuleBehaviorSteam {
 
                     let b = curr.get_mat_id(nx as usize, ny as usize);
                     if (b == self.mat_id_air) {
-                        intents.push(CellIntent::Movement { from: (x, y), to: (nx as usize, ny as usize)});
+                        intents.push(CellIntent::MoveSwap { from: (x, y), to: (nx as usize, ny as usize)});
                         return true;
                     }
                     false

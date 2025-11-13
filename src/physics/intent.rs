@@ -12,7 +12,7 @@ pub(crate) enum CellIntent {
         out_a: MaterialId,
         out_b: MaterialId,
     },
-    Movement {
+    MoveSwap {
         from: (usize, usize),
         to: (usize, usize),
     },
@@ -23,7 +23,7 @@ impl CellIntent {
         match self {
             CellIntent::Transform { cell, ..} => {vec![*cell]},
             CellIntent::Reaction { cell_a, cell_b, .. } => vec![*cell_a, *cell_b],
-            CellIntent::Movement { from, to} => {vec![*from, *to]},
+            CellIntent::MoveSwap { from, to} => {vec![*from, *to]},
         }
     }
 }
