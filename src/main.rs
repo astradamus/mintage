@@ -134,6 +134,21 @@ async fn main() {
         let tps = tps_tracker.update(&shared);
         let total_time = get_time();
 
+        // Mouse Tooltip
+        let mouse_pos = mouse_position();
+        if mouse_pos.0 >= dx && mouse_pos.0 < dx + dest_w && mouse_pos.1 >= dy && mouse_pos.1 < dy + dest_h {
+            let grid_x = ((mouse_pos.0 - dx) / scale / tile_size) as usize;
+            let grid_y = ((mouse_pos.1 - dy) / scale / tile_size) as usize;
+            if grid_x < w && grid_y < h {
+                let temp = snapshot.temp_at(grid_x, grid_y);
+                draw_text(&format!("Temp: {:.1}°C", temp), sw - 200.0, 24.0*1.0, 24.0, WHITE);
+                let mat_id = snapshot.mat_id_at(grid_x, grid_y);
+                if let Some(mat) = shared.mat_db.get(mat_id) {
+                    draw_text(&format!("Mat: {}", mat.name), sw - 200.0, 24.0*2.0, 24.0, WHITE);
+                }
+            }
+        }
+
         // COL1
         draw_text(&format!("Sim Step: {}", step),                                                       10.0, 24.0*1.0, 24.0, BLUE);
         draw_text(&format!("TPS: {}", tps),                                                             10.0, 24.0*2.0, 24.0, SKYBLUE);
