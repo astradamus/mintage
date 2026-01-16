@@ -1,22 +1,58 @@
 {
     "base:air": (
         color_raw: (15, 15, 22, 255),
+        diffusivity: 0.005,
     ),
     "base:stone": (
         color_raw: (120, 120, 120, 255),
+        diffusivity: 0.08,
+    ),
+    "base:diamond": (
+        color_raw: (200, 200, 255, 255),
+        diffusivity: 0.25,
+    ),
+    "base:silver": (
+        color_raw: (230, 230, 230, 255),
+        diffusivity: 0.21,
+    ),
+    "base:copper": (
+        color_raw: (180, 120, 50, 255),
+        diffusivity: 0.20,
     ),
 
+    "base:ice": (
+        color_raw: (80, 240, 255, 255),
+        diffusivity: 0.005,
+        transform_hot_mat_name: "base:water",
+        transform_hot_temp: 0.0,
+    ),
     "base:water": (
         color_raw: (40, 120, 255, 255),
+        diffusivity: 0.01,
+        transform_cold_mat_name: "base:ice",
+        transform_cold_temp: 0.0,
+        transform_hot_mat_name: "base:steam",
+        transform_hot_temp: 100.0,
     ),
+    "base:steam": (
+        color_raw: (200, 200, 200, 255),
+        diffusivity: 0.005,
+        transform_cold_mat_name: "base:water",
+        transform_cold_temp: 100.0,
+    ),
+
+
     "base:lava": (
         color_raw: (255, 120, 40, 255),
+        diffusivity: 0.15,
     ),
     "base:blood": (
         color_raw: (155, 40, 40, 255),
+        diffusivity: 0.21,
     ),
 
-    "base:steam": (
-        color_raw: (200, 200, 200, 255),
+    "base:insulation": (
+        color_raw: (75, 75, 75, 255),
+        diffusivity: 0.0,
     ),
 }
