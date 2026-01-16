@@ -18,7 +18,7 @@ const COLORS_THERM_GRADIENT: [Color; 3] = [
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "coinage 0.1.0".to_owned(),
+        window_title: "mintage 0.1.0".to_owned(),
         window_width: 2400,
         window_height: 1400,
         fullscreen: false,
