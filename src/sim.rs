@@ -7,11 +7,11 @@ use crate::world::World;
 use arc_swap::ArcSwap;
 use macroquad::math::{f64, u64};
 use macroquad::prelude::get_time;
-use std::mem;
+use std::{fs, mem};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use rand::{Rng, SeedableRng};
-use rand_xoshiro::Xoshiro256PlusPlus;
+use image::GenericImageView;
 use crate::physics::module_diffusion_thermal::ModuleDiffusionThermal;
 use crate::physics::module_transforms_thermal::ModuleTransformsThermal;
 
@@ -118,76 +118,54 @@ impl TpsTracker {
     }
 }
 
+/// Helper for loading map state from a bitmap and a RON file.
+/// A given hex code on the bitmap represents a mat_id and temp.
+#[derive(serde::Deserialize)]
+struct MapEntry {
+    material: String,
+    temperature: f32,
+}
+
 /// Builds world and physics engine.
 pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> (World, Engine) {
     let mut world = World::new(w, h, mat_db, react_db);
     let mut phys_eng = Engine::new(mat_db, w, h);
 
     let base_seed = 123456789u64;
-    let mut global_rng = Xoshiro256PlusPlus::seed_from_u64(base_seed);
+    // let mut global_rng = Xoshiro256PlusPlus::seed_from_u64(base_seed);
 
-    // Basic random map
+    // Basic bitmap-based map loading for demo purposes.
     {
-        let (curr, mut next) = world.ctx_pair();
+        let (_, mut next) = world.ctx_pair();
 
-        // for y in 0..h {
-        //     for x in 0..w {
-        //         next.set_mat_id(x, y, curr.mat_db.get_id("base:insulation").unwrap());
-        //         if (x % 10 == 0) && (y % 10 == 0) {
-        //             next.set_temp(x, y, 10000000000.0);
-        //         }
-        //         else {
-        //             next.set_temp(x, y, -10000000.0);
-        //         }
-        //     }
-        // }
+        // The RON file assigns a mat_id and temp to a given color hex code.
+        // We make a map of hex codes to map entries, then read the bitmap and assign.
+        if let Ok(key_text) = fs::read_to_string("assets/map_key.ron") {
+            if let Ok(mut map_key_raw) = ron::de::from_str::<HashMap<String, MapEntry>>(&key_text) {
+                // Convert hex codes to uppercase so user can't get it wrong.
+                let map_key = map_key_raw
+                    .drain()
+                    .map(|(k, v)| (k.to_uppercase(), v))
+                    .collect::<HashMap<String, MapEntry>>();
+                if let Ok(map_img) = image::open("assets/map.png") {
+                    let (img_w, img_h) = map_img.dimensions();
 
-        // for y in 0..h {
-        //     for x in 0..w {
-        //         let result = global_rng.random_range(0.0..1.0);
-        //         if result < 0.01 {
-        //             next.set_mat_id(x, y, curr.mat_db.get_id("base:blood").unwrap());
-        //             next.set_temp(x, y, 10000000.0);
-        //         }
-        //         else if result < 0.2 {
-        //             next.set_mat_id(x, y, curr.mat_db.get_id("base:water").unwrap());
-        //         }
-        //         else if result < 0.25 {
-        //             next.set_mat_id(x, y, curr.mat_db.get_id("base:lava").unwrap());
-        //             next.set_temp(x, y, -2000000.0);
-        //         }
-        //         else {
-        //             next.set_mat_id(x, y, curr.mat_db.get_id("base:air").unwrap());
-        //         }
-        //     }
-        // }
-
-        for y in 0..h {
-            for x in 0..w {
-                next.set_mat_id(x, y, curr.mat_db.get_id("base:water").unwrap());
+                    // Clamp map size to world size.
+                    for y in 0..img_h.min(h as u32) {
+                        for x in 0..img_w.min(w as u32) {
+                            let p = map_img.get_pixel(x, y);
+                            let hex = format!("#{:02X}{:02X}{:02X}", p[0], p[1], p[2]);
+                            if let Some(entry) = map_key.get(&hex) {
+                                if let Some(mat_id) = mat_db.get_id(&entry.material) {
+                                    next.set_mat_id(x as usize, y as usize, mat_id);
+                                    next.set_temp(x as usize, y as usize, entry.temperature);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-
-        next.set_temp(0, 10, 100000.0);
-        for x in 0..w {
-            next.set_mat_id(x, 10, curr.mat_db.get_id("base:diamond").unwrap());
-        }
-
-        for y in 0..h {
-            next.set_mat_id(60, y, curr.mat_db.get_id("base:diamond").unwrap());
-            next.set_mat_id(120, y, curr.mat_db.get_id("base:diamond").unwrap());
-            next.set_mat_id(180, y, curr.mat_db.get_id("base:diamond").unwrap());
-            next.set_mat_id(240, y, curr.mat_db.get_id("base:diamond").unwrap());
-        }
-
-        next.set_temp(0, 22, 10000000000.0);
-        next.set_temp(w-1, 22, -10000000000.0);
-        for x in 0..w {
-            next.set_mat_id(x, 21, curr.mat_db.get_id("base:insulation").unwrap());
-            next.set_mat_id(x, 22, curr.mat_db.get_id("base:diamond").unwrap());
-            next.set_mat_id(x, 23, curr.mat_db.get_id("base:insulation").unwrap());
-        }
-
         world.swap_all();
     }
 

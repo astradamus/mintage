@@ -1,0 +1,30 @@
+{
+    "#000000": (    // black
+        material: "base:air",
+        temperature: 50.0,
+    ),
+    "#0000ff": (    // blue
+        material: "base:water",
+        temperature: 50.0,
+    ),
+    "#00ffff": (    // teal
+        material: "base:ice",
+        temperature: -1000.0,
+    ),
+    "#ff0000": (    // red
+        material: "base:lava",
+        temperature: 100000.0,
+    ),
+    "#00ff00": (    // green
+        material: "base:plant",
+        temperature: 50.0,
+    ),
+    "#ff00ff": (    // purple
+        material: "base:insulation",
+        temperature: 0.0,
+    ),
+    "#ffffff": (    // white
+        material: "base:diamond",
+        temperature: 0.0,
+    ),
+}

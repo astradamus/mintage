@@ -6,4 +6,18 @@
         out_b: "base:steam",
         rate: 0.75,
     ),
+    "base:plant+water=plant+plant": (
+        in_a: "base:plant",
+        in_b: "base:water",
+        out_a: "base:plant",
+        out_b: "base:plant",
+        rate: 0.005,
+    ),
+    "base:ash+air=air+air": (
+        in_a: "base:ash",
+        in_b: "base:air",
+        out_a: "base:air",
+        out_b: "base:air",
+        rate: 0.0001,
+    ),
 }

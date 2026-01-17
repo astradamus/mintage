@@ -1,11 +1,7 @@
 {
     "base:air": (
         color_raw: (15, 15, 22, 255),
-        diffusivity: 0.005,
-    ),
-    "base:stone": (
-        color_raw: (120, 120, 120, 255),
-        diffusivity: 0.08,
+        diffusivity: 0.05,
     ),
     "base:diamond": (
         color_raw: (200, 200, 255, 255),
@@ -41,14 +37,28 @@
         transform_cold_temp: 100.0,
     ),
 
-
+    "base:stone": (
+        color_raw: (120, 120, 120, 255),
+        diffusivity: 0.08,
+        transform_hot_mat_name: "base:lava",
+        transform_hot_temp: 800.0,
+    ),
     "base:lava": (
         color_raw: (255, 120, 40, 255),
         diffusivity: 0.15,
+        transform_cold_mat_name: "base:stone",
+        transform_cold_temp: 800.0,
     ),
-    "base:blood": (
-        color_raw: (155, 40, 40, 255),
-        diffusivity: 0.21,
+
+    "base:plant": (
+        color_raw: (0, 200, 0, 255),
+        diffusivity: 0.01,
+        transform_hot_mat_name: "base:ash",
+        transform_hot_temp: 300.0,
+    ),
+    "base:ash": (
+        color_raw: (50, 50, 50, 255),
+        diffusivity: 0.1,
     ),
 
     "base:insulation": (

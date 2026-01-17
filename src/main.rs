@@ -26,10 +26,12 @@ fn window_conf() -> Conf {
     }
 }
 
+/// Generates a color from a ratio and a bundle of three colors (neg, zero, pos).
 fn triple_gradient_bun(ratio: f32, bundle: &[Color]) -> Color {
     triple_gradient(ratio, bundle[0], bundle[1], bundle[2])
 }
 
+/// Generates a color from a ratio and gradient definition.
 fn triple_gradient(ratio: f32, neg: Color, zero: Color, pos: Color) -> Color {
     let ratio = ratio.clamp(-1.0, 1.0);
 
@@ -49,15 +51,12 @@ fn triple_gradient(ratio: f32, neg: Color, zero: Color, pos: Color) -> Color {
 #[macroquad::main(window_conf)]
 async fn main() {
 
-    // World size multiplier, for convenient tile size calculations.
-    let multi = 16.0;
-
     // World size in tiles.
-    let w = (32.0*multi) as usize;
-    let h = (16.0*multi) as usize;
+    let w = 580;
+    let h = 300;
 
     // Tile size in pixels.
-    let tile_size: f32 = 64.0 / multi as f32;
+    let tile_size: f32 = 2f32;
     let world_px_w = (w as f32 * tile_size) as u32;
     let world_px_h = (h as f32 * tile_size) as u32;
 
@@ -92,7 +91,7 @@ async fn main() {
             for x in 0..snapshot.w {
 
                 if view_thermal {
-                    let t = (snapshot.temp_at(x, y) / 1000.0).clamp(-1.0, 1.0);
+                    let t = ((snapshot.temp_at(x, y) - 50.0) / 100.0).clamp(-1.0, 1.0);
                     let rgb = triple_gradient_bun(t, &COLORS_THERM_GRADIENT);
                     img.set_pixel(x as u32, y as u32, rgb);
                 }
