@@ -55,8 +55,7 @@ fn triple_gradient(ratio: f32, neg: Color, zero: Color, pos: Color) -> Color {
 async fn main() {
 
     // Load config from RON file.
-    let path = format!("{}/assets/config.ron", env!("CARGO_MANIFEST_DIR"));
-    let contents = fs::read_to_string(&path).expect("Missing config: config.ron");
+    let contents = fs::read_to_string("assets/config.ron").expect("Missing config: config.ron");
     let config: HashMap<String, Value> = ron::de::from_str(&contents).unwrap();
 
     // World size in cells.
