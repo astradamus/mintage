@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use image::GenericImageView;
+use serde_json::Value;
 use crate::physics::module_diffusion_thermal::ModuleDiffusionThermal;
 use crate::physics::module_transforms_thermal::ModuleTransformsThermal;
 
@@ -127,16 +128,24 @@ struct MapEntry {
 }
 
 /// Builds world and physics engine.
-pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> (World, Engine) {
+pub fn build_world_and_engine(config: HashMap<String, Value>, w: usize, h: usize, mat_db: &Arc<MaterialDb>, react_db: &Arc<ReactionDb>) -> (World, Engine) {
     let mut world = World::new(w, h, mat_db, react_db);
-    let mut phys_eng = Engine::new(w, h);
+    let mut phys_eng = Engine::new(config, w, h);
 
     let base_seed = 123456789u64;
     // let mut global_rng = Xoshiro256PlusPlus::seed_from_u64(base_seed);
 
     // Basic bitmap-based map loading for demo purposes.
     {
-        let (_, mut next) = world.ctx_pair();
+        let (curr, mut next) = world.ctx_pair();
+
+        // Initialize the world before loading the png map.
+        for y in 0..h {
+            for x in 0..w {
+                next.set_mat_id(x, y, curr.mat_db.get_id("base:air").expect("Missing material: base:air"));
+                next.set_temp(x, y, 50.0);
+            }
+        }
 
         // The RON file assigns a mat_id and temp to a given color hex code.
         // We make a map of hex codes to map entries, then read the bitmap and assign.
@@ -195,7 +204,7 @@ pub fn build_world_and_engine(w: usize, h: usize, mat_db: &Arc<MaterialDb>, reac
 
 /// Loads DBs, builds World and Phys Engine, starts the Sim thread, and
 /// returns a handle to the Shared data struct for the Render thread.
-pub fn spawn_sim_thread(w: usize, h: usize) -> Arc<Shared> {
+pub fn spawn_sim_thread(config: HashMap<String, Value>, w: usize, h: usize) -> Arc<Shared> {
     let mat_db = {
         let mut mdb = MaterialDb::new();
         mdb
@@ -232,7 +241,7 @@ pub fn spawn_sim_thread(w: usize, h: usize) -> Arc<Shared> {
                 shared.current.store(Arc::new(snap));
             };
 
-            let (mut world, mut phys_eng) = build_world_and_engine(w, h, &shared.mat_db, &shared.react_db);
+            let (mut world, mut phys_eng) = build_world_and_engine(config, w, h, &shared.mat_db, &shared.react_db);
 
             publish(&world);
 

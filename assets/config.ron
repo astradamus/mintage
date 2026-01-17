@@ -1,3 +1,5 @@
 {
-    "steam_fade_chance": 0.0,   // For demo purposes it's more interesting if steam never fades.
+    "steam_fade_chance": 0.0,       // For demo purposes it's more interesting if steam never fades.
+    "world_width": 580,             // World size in cells.
+    "world_height": 300,            // World size in cells.
 }

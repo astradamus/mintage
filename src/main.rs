@@ -4,8 +4,11 @@ mod reaction;
 mod sim;
 mod world;
 
+use std::collections::HashMap;
+use std::fs;
 use std::sync::atomic::Ordering;
 use macroquad::prelude::*;
+use serde_json::Value;
 use sim::{TpsTracker, spawn_sim_thread};
 
 // Constants
@@ -51,17 +54,19 @@ fn triple_gradient(ratio: f32, neg: Color, zero: Color, pos: Color) -> Color {
 #[macroquad::main(window_conf)]
 async fn main() {
 
-    // World size in tiles.
-    let w = 580;
-    let h = 300;
+    // Load config from RON file.
+    let path = format!("{}/assets/config.ron", env!("CARGO_MANIFEST_DIR"));
+    let contents = fs::read_to_string(&path).expect("Missing config: config.ron");
+    let config: HashMap<String, Value> = ron::de::from_str(&contents).unwrap();
 
-    // Tile size in pixels.
-    let tile_size: f32 = 2f32;
-    let world_px_w = (w as f32 * tile_size) as u32;
-    let world_px_h = (h as f32 * tile_size) as u32;
+    // World size in cells.
+    let w = config.get("world_width").expect("Missing config: world_width")
+        .as_u64().expect("Invalid config: world_width must be u64") as usize;
+    let h = config.get("world_height").expect("Missing config: world_height")
+        .as_u64().expect("Invalid config: world_height must be u64") as usize;
 
     // Spawn Sim thread, hold on to shared state.
-    let shared = spawn_sim_thread(w, h);
+    let shared = spawn_sim_thread(config, w, h);
 
     // Tracks ticks per second.
     let mut tps_tracker = TpsTracker::new();
@@ -109,12 +114,12 @@ async fn main() {
 
         let sw = screen_width();
         let sh = screen_height();
-        let scale_x = sw / world_px_w as f32;
-        let scale_y = sh / world_px_h as f32;
+        let scale_x = sw / w as f32;
+        let scale_y = sh / h as f32;
         let scale = scale_x.min(scale_y).floor().max(1.0);
 
-        let dest_w = world_px_w as f32 * scale;
-        let dest_h = world_px_h as f32 * scale;
+        let dest_w = w as f32 * scale;
+        let dest_h = h as f32 * scale;
         let dx = (sw - dest_w) * 0.5;
         let dy = (sh - dest_h) * 0.5;
 
@@ -136,8 +141,8 @@ async fn main() {
         // Mouse Tooltip
         let mouse_pos = mouse_position();
         if mouse_pos.0 >= dx && mouse_pos.0 < dx + dest_w && mouse_pos.1 >= dy && mouse_pos.1 < dy + dest_h {
-            let grid_x = ((mouse_pos.0 - dx) / scale / tile_size) as usize;
-            let grid_y = ((mouse_pos.1 - dy) / scale / tile_size) as usize;
+            let grid_x = ((mouse_pos.0 - dx) / scale) as usize;
+            let grid_y = ((mouse_pos.1 - dy) / scale) as usize;
             if grid_x < w && grid_y < h {
                 let temp = snapshot.temp_at(grid_x, grid_y);
                 draw_text(&format!("Temp: {:.1}°C", temp), sw - 200.0, 24.0*1.0, 24.0, WHITE);

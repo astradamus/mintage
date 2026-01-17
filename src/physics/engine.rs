@@ -14,14 +14,10 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(world_w: usize, world_h: usize) -> Self {
-        let path = format!("{}/assets/config.ron", env!("CARGO_MANIFEST_DIR"));
-        let contents = fs::read_to_string(&path).expect("Missing config: config.ron");
-        let cfg: HashMap<String, Value> = ron::de::from_str(&contents).unwrap();
-
+    pub fn new(config: HashMap<String, Value>, world_w: usize, world_h: usize) -> Self {
         Self {
             modules: vec![],
-            config: cfg,
+            config,
             changed_dense: vec![false; world_w * world_h],
             changed_sparse: vec![],
         }
