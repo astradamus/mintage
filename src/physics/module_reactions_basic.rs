@@ -23,6 +23,8 @@ impl ModuleReactionsBasic {
     }
 }
 
+/// Iterate over all cells in a random order, checking for reactive neighbors.
+/// When found, rolls the chance to react and registers the intent if the roll hits.
 impl Module for ModuleReactionsBasic {
 
     fn apply_config(&mut self, config: &HashMap<String, Value>) {}

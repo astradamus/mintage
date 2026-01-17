@@ -21,6 +21,8 @@ impl ModuleTransformsThermal {
     }
 }
 
+/// Iterate over all cells in a random order, checking for temperature-based material
+/// changes (such as melting).
 impl Module for ModuleTransformsThermal {
 
     fn apply_config(&mut self, config: &HashMap<String, Value>) {}

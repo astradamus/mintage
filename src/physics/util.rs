@@ -37,9 +37,9 @@ where
     false
 }
 
-/// Iterate over all cells in a random direction, firing the given function for each.
-/// It turns out that this randomization actually dramatically improves TPS.
-/// When 'r' below is forced to 0, we actually lose a lot of TPS.
+/// Iterate over all cells in a random direction, firing the given function
+/// for each. This doesn't cost much--turning it off only gains ~14% TPS--and
+/// it is basically mandatory to prevent bias/artifacts.
 pub fn rand_iter_dir<F, R>(rng : &mut R, w: usize, h: usize, mut iter_fn:F)
 where
     F: FnMut(usize, usize),

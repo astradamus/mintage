@@ -13,6 +13,7 @@ fn harmonic_mean(a: f32, b: f32) -> f32 {
     if s == 0.0 { 0.0 } else { (2.0 * a * b) / s }
 }
 
+/// Module for thermal diffusion, using  values to determine heat flow.
 pub struct ModuleDiffusionThermal {
     rng: Xoshiro256PlusPlus,
 

@@ -8,6 +8,9 @@ use rand_xoshiro::Xoshiro256PlusPlus;
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// A simple module that simulates steam moving around and fading away.
+/// This module is likely to be retired later on when more complex systems
+/// (e.g. fluid/gas dynamics) can produce similar behavior organically.
 pub struct ModuleBehaviorSteam {
     mat_id_steam: MaterialId,
     mat_id_air: MaterialId,

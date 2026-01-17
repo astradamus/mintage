@@ -1,5 +1,9 @@
 ﻿use crate::material::MaterialId;
 
+/// Intents are lightweight descriptions of changes to the world state, produced by
+/// physics modules that run concurrently. They are processed sequentially by the physics
+/// engine, with care to handle collisions, after all modules run in parallel.
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum CellIntent {
     Transform {
