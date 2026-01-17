@@ -1,23 +1,20 @@
-﻿use crate::material::{MaterialDb, MaterialId};
-use crate::physics::intent::CellIntent;
+﻿use crate::physics::intent::CellIntent;
 use crate::physics::module::{Module, ModuleOutput};
 use crate::world::{CurrCtx, NextCtx, World};
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::sync::Arc;
 
 pub struct Engine {
     modules: Vec<Box<dyn Module + Send>>,
     config: HashMap<String, Value>,
-    mat_id_air: MaterialId,
     changed_dense: Vec<bool>,
     changed_sparse: Vec<usize>,
 }
 
 impl Engine {
-    pub fn new(mat_db: &Arc<MaterialDb>, world_w: usize, world_h: usize) -> Self {
+    pub fn new(world_w: usize, world_h: usize) -> Self {
         let path = format!("{}/assets/config.ron", env!("CARGO_MANIFEST_DIR"));
         let contents = fs::read_to_string(&path).expect("Missing config: config.ron");
         let cfg: HashMap<String, Value> = ron::de::from_str(&contents).unwrap();
@@ -25,7 +22,6 @@ impl Engine {
         Self {
             modules: vec![],
             config: cfg,
-            mat_id_air: mat_db.get_id("base:air").unwrap(),
             changed_dense: vec![false; world_w * world_h],
             changed_sparse: vec![],
         }
