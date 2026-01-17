@@ -65,6 +65,10 @@ async fn main() {
     let h = config.get("world_height").expect("Missing config: world_height")
         .as_u64().expect("Invalid config: world_height must be u64") as usize;
 
+    // Thermal view temp range set in config.
+    let thermal_view_range = config.get("thermal_view_range").expect("Missing config: thermal_view_range")
+        .as_f64().expect("Invalid config: thermal_view_range must be f64") as f32;
+
     // Spawn Sim thread, hold on to shared state.
     let shared = spawn_sim_thread(config, w, h);
 
@@ -95,15 +99,19 @@ async fn main() {
         for y in 0..snapshot.h {
             for x in 0..snapshot.w {
 
-                if view_thermal {
-                    let t = ((snapshot.temp_at(x, y) - 50.0) / 100.0).clamp(-1.0, 1.0);
-                    let rgb = triple_gradient_bun(t, &COLORS_THERM_GRADIENT);
-                    img.set_pixel(x as u32, y as u32, rgb);
-                }
-                else {
-                    if let Some(mat) = shared.mat_db.get(snapshot.mat_id_at(x, y)) {
-                        img.set_pixel(x as u32, y as u32, mat.color);
+                if let Some(mat) = shared.mat_db.get(snapshot.mat_id_at(x, y)) {
+                    let mut mat_rgb = mat.color;
+
+                    if view_thermal {
+                        let t = ((snapshot.temp_at(x, y) - 50.0) / thermal_view_range).clamp(-1.0, 1.0);
+                        let therm_rgb = triple_gradient_bun(t, &COLORS_THERM_GRADIENT);
+
+                        let alpha = 0.75;
+                        mat_rgb.r = mat_rgb.r + (therm_rgb.r - mat_rgb.r) * alpha;
+                        mat_rgb.g = mat_rgb.g + (therm_rgb.g - mat_rgb.g) * alpha;
+                        mat_rgb.b = mat_rgb.b + (therm_rgb.b - mat_rgb.b) * alpha;
                     }
+                    img.set_pixel(x as u32, y as u32, mat_rgb);
                 }
             }
         }
@@ -162,6 +170,8 @@ async fn main() {
         draw_text(&format!("SPS: {}", tps / wtps),                                                      10.0, 24.0*4.0, 24.0, PURPLE);
         draw_text(&format!("World Secs: {}", step / wtps as u64),                                       10.0, 24.0*5.0, 24.0, PURPLE);
         draw_text(&format!("World Hours: {}", step as f32 / 60.0 / 60.0 / wtps as f32),                 10.0, 24.0*6.0, 24.0, PURPLE);
+
+        draw_text(&format!("Press [SPACE] to toggle Thermal View."),                                    screen_width()/2.0 - 140.0, 12.0, 20.0, WHITE);
 
         // COL2
         // draw_text(&format!("Tiles: {} x {}  ({})", w, h, w*h),                                          500.0, 24.0*1.0, 24.0, PURPLE);

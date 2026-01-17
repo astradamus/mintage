@@ -2,4 +2,9 @@
     "steam_fade_chance": 0.0,       // For demo purposes it's more interesting if steam never fades.
     "world_width": 580,             // World size in cells.
     "world_height": 300,            // World size in cells.
+
+    // Controls how much temperature variation fits into the thermal view color gradient.
+    // Larger values show more detail at extreme temperatures but compress differences near zero.
+    // Values beyond +/- range appear fully red or fully blue.
+    "thermal_view_range": 500.0
 }
