@@ -32,7 +32,9 @@ pub struct Material {
 pub struct MaterialDb {
     defs: Vec<Material>,
     by_name: HashMap<String, MaterialId>,
-    diffusivity: Box<[f32]>,
+
+    /// Diffusivity indexed by material ID, packed for cache locality during conductance updates.
+    diffusivity_lookup: Box<[f32]>,
 }
 
 impl MaterialDb {
@@ -40,7 +42,7 @@ impl MaterialDb {
         Self {
             defs: vec![],
             by_name: HashMap::new(),
-            diffusivity: vec![0.0; 256].into_boxed_slice(),
+            diffusivity_lookup: Box::default(),
         }
     }
 
@@ -64,13 +66,13 @@ impl MaterialDb {
     pub fn get_mat_count(&self) -> usize { self.defs.len() }
 
     #[inline(always)]
-    pub fn get_diffusivity_of(&self) -> &[f32] {
-        &self.diffusivity
+    pub fn get_diffusivity_lookup(&self) -> &[f32] {
+        &self.diffusivity_lookup
     }
 
     #[inline(always)]
     pub fn diffusivity_of(&self, id: MaterialId) -> f32 {
-        self.diffusivity[id.0 as usize]
+        self.diffusivity_lookup[id.0 as usize]
     }
 
     pub fn load_ron_file(&mut self, path: &str) -> Result<()> {
@@ -86,7 +88,7 @@ impl MaterialDb {
         }
 
         // Build diffusivity lookup.
-        self.diffusivity = self.defs.iter().map(|m| m.diffusivity).collect::<Box<[f32]>>();
+        self.diffusivity_lookup = self.defs.iter().map(|m| m.diffusivity).collect::<Box<[f32]>>();
 
         // Get material IDs for transforms.
         let ids: Vec<(Option<MaterialId>, Option<MaterialId>)> = self.defs.iter()

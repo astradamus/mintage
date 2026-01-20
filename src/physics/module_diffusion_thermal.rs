@@ -28,7 +28,7 @@ impl ModuleDiffusionThermal {
         let w = curr.w;
         let h = curr.h;
         let mat_ids = curr.get_mat_ids();
-        let diff_of = curr.mat_db.get_diffusivity_of();
+        let diff_of = curr.mat_db.get_diffusivity_lookup();
 
         let mut gx = vec![0.0; (w - 1) * h];
         let mut gy = vec![0.0; w * (h - 1)];
@@ -154,7 +154,7 @@ impl Module for ModuleDiffusionThermal {
     fn post_run(&mut self, post: &PostRunCtx<'_>, changed_cells: &[usize]) {
         let w = post.w;
         let h = post.h;
-        let diff_of = post.mat_db.get_diffusivity_of();
+        let diff_of = post.mat_db.get_diffusivity_lookup();
         let mat_ids = post.next_cell_mat_ids;
         for &i in changed_cells {
             self.update_conductance_local(w, h, i, diff_of, mat_ids);
