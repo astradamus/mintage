@@ -255,3 +255,30 @@ pub fn spawn_sim_thread(config: HashMap<String, Value>, w: usize, h: usize) -> A
 
     shared
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_double_buffer_sync() {
+        let mut db = DoubleBuffer::new(10);
+        db.next = 20;
+
+        db.sync(); // This should copy 'cur' (10) into 'next'
+
+        assert_eq!(db.cur, 10);
+        assert_eq!(db.next, 10);
+    }
+
+    #[test]
+    fn test_double_buffer_swap() {
+        let mut db = DoubleBuffer::new(10);
+        db.next = 20;
+
+        db.swap(); // This should swap 'cur' and 'next'
+
+        assert_eq!(db.cur, 20);
+        assert_eq!(db.next, 10);
+    }
+}
