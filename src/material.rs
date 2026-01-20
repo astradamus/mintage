@@ -112,6 +112,12 @@ impl MaterialDb {
                        mat.name, mat.transform_hot_mat_name);
             }
 
+            // Panic if both transforms are specified, but hot temp is not higher than cold temp.
+            if !mat.transform_cold_mat_name.is_empty() && !mat.transform_hot_mat_name.is_empty() && mat.transform_cold_temp >= mat.transform_hot_temp {
+                panic!("Invalid material configuration: Material '{}' has hot transform temperature ({}) equal to or lower than cold transform temperature ({})",
+                       mat.name, mat.transform_hot_temp, mat.transform_cold_temp);
+            }
+
             mat.transform_cold_mat_id = cold;
             mat.transform_hot_mat_id  = hot;
         }
@@ -186,7 +192,17 @@ mod tests {
         // Ensure panic when invalid cold transform material is referenced.
         mat_db.load_ron_file("assets_test/materials_test_invalid_cold.ron").unwrap();
     }
-    
+
+    #[test]
+    #[should_panic(expected = "Invalid material configuration")]
+    fn test_invalid_ron_safety_transform_temps() {
+        let mut mat_db = MaterialDb::new();
+
+        // Ensure panic when a material specifies both hot and cold transforms, but hot
+        // transform temperature is equal to or lower than cold transform temperature.
+        mat_db.load_ron_file("assets_test/materials_test_invalid_transform_temps.ron").unwrap();
+    }
+
     #[test]
     fn test_ensure_db_starts_empty() {
         let mat_db = MaterialDb::new();

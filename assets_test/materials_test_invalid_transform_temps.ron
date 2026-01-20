@@ -1,0 +1,29 @@
+{
+    "base:air": (
+        color_raw: (15, 15, 22, 255),
+        diffusivity: 0.05,
+    ),
+    "base:water": (
+        color_raw: (40, 120, 255, 255),
+        diffusivity: 0.01,
+
+        // Both at zero tests number rule while also accounting for when user forgets to specify temps at all.
+        transform_cold_mat_name: "base:ice",
+        transform_cold_temp: 0.0,
+        transform_hot_mat_name: "base:steam",
+        transform_hot_temp: 0.0,
+    ),
+
+    "base:ice": (
+        color_raw: (80, 240, 255, 255),
+        diffusivity: 0.005,
+        transform_hot_mat_name: "base:water",
+        transform_hot_temp: 0.0,
+    ),
+    "base:steam": (
+        color_raw: (200, 200, 200, 255),
+        diffusivity: 0.005,
+        transform_cold_mat_name: "base:water",
+        transform_cold_temp: 100.0,
+    ),
+}
