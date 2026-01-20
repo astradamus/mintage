@@ -46,7 +46,7 @@ impl MaterialDb {
         }
     }
 
-    /// Insert a new material.
+    /// Insert a new material. Returns the ID of the material.
     fn insert(&mut self, m: Material) -> MaterialId {
         let name = m.name.clone();
         let id = MaterialId(self.defs.len() as u16);
