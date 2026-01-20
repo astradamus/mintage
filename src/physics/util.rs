@@ -78,3 +78,46 @@ where
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+    use rand_xoshiro::Xoshiro256PlusPlus;
+
+    #[test]
+    fn test_try_random_dirs_completeness() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(89);
+        let mut history = Vec::new();
+
+        // Try 4 directions and record them
+        try_random_dirs(&mut rng, true, |dir| {
+            history.push(dir);
+            false // return false so it keeps going
+        });
+
+        // Ensure we have visited exactly 4 directions.
+        assert_eq!(history.len(), 4);
+
+        // If each direction was visited, and we only visited 4, duplicates are impossible.
+        for dir in NEIGHBORS_4 {
+            assert!(history.contains(&dir));
+    }
+
+        // Clear history for 8 directions test
+        history.clear();
+
+        // Try 8 directions and record them
+        try_random_dirs(&mut rng, false, |dir| {
+            history.push(dir);
+            false // return false so it keeps going
+        });
+
+        // Ensure we have visited exactly 8 directions.
+        assert_eq!(history.len(), 8);
+
+        // If each direction was visited, and we only visited 8, duplicates are impossible.
+        for dir in NEIGHBORS_8 {
+            assert!(history.contains(&dir));
+        }
+    }
+}
