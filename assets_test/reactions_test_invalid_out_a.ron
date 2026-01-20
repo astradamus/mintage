@@ -1,0 +1,9 @@
+{
+    "base:plant+water=plant+plant": (
+        in_a: "base:plant",
+        in_b: "base:water",
+        out_a: "base:missing",   // Targets a missing material.
+        out_b: "base:plant",
+        rate: 0.005,
+    ),
+}

@@ -92,6 +92,30 @@ impl ReactionDb {
         let mut map: HashMap<String, ReactionRef> = from_str(&text)?;
 
         for (name, react_ref) in map.drain() {
+
+            // Panic if any material reference is invalid.
+            if material_db.get_id(&react_ref.in_a).is_none() {
+                panic!("Invalid material reference: Reaction '{}' references missing in_a material '{}'",
+                       name, react_ref.in_a);
+            }
+            if material_db.get_id(&react_ref.in_b).is_none() {
+                panic!("Invalid material reference: Reaction '{}' references missing in_b material '{}'",
+                       name, react_ref.in_b);
+            }
+            if material_db.get_id(&react_ref.out_a).is_none() {
+                panic!("Invalid material reference: Reaction '{}' references missing out_a material '{}'",
+                       name, react_ref.out_a);
+            }
+            if material_db.get_id(&react_ref.out_b).is_none() {
+                panic!("Invalid material reference: Reaction '{}' references missing out_b material '{}'",
+                       name, react_ref.out_b);
+            }
+
+            // Do not save if rate is zero or negative. Zero-rate reactions will
+            // never occur, so there's no sense wasting time checking for them.
+            if (react_ref.rate <= 0.0) { continue; }
+
+            // Reaction validated, add to db.
             let react = Reaction {
                 name,
                 in_a: material_db.get_id(&react_ref.in_a).unwrap(),
@@ -104,5 +128,98 @@ impl ReactionDb {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_ron_file() {
+        let mut mat_db = MaterialDb::new();
+        mat_db.load_ron_file("assets_test/materials_test.ron").unwrap();
+
+        let mut react_db = ReactionDb::new();;
+        react_db.load_ron_file(&mat_db, "assets_test/reactions_test.ron").unwrap();
+
+        assert_eq!(react_db.total_material_count, 12); // Ensure we got the right number of materials.
+
+        {
+            let mat_id_plant = mat_db.get_id("base:plant").unwrap();
+            let mat_id_water = mat_db.get_id("base:water").unwrap();
+
+            let react_id_plant_growth = react_db.by_name.get("base:plant+water=plant+plant").unwrap();
+            let react_plant_growth = react_db.get(*react_id_plant_growth).unwrap();
+
+            // Ensure reactions link to materials correctly.
+            assert_eq!(react_plant_growth.in_a, mat_id_plant);
+            assert_eq!(react_plant_growth.in_b, mat_id_water);
+            assert_eq!(react_plant_growth.out_a, mat_id_plant);
+            assert_eq!(react_plant_growth.out_b, mat_id_plant);
+
+            // Ensure reactions are saved to the lookup table in both directions.
+            assert_eq!(react_db.get_reaction_by_mats(mat_id_plant, mat_id_water), Some(*react_id_plant_growth));
+            assert_eq!(react_db.get_reaction_by_mats(mat_id_water, mat_id_plant), Some(*react_id_plant_growth));
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid material reference")]
+    fn test_invalid_ron_safety_in_a() {
+        let mut mat_db = MaterialDb::new();
+        mat_db.load_ron_file("assets_test/materials_test.ron").unwrap();
+        let mut react_db = ReactionDb::new();
+
+        // Ensure panic when invalid in_a material is referenced.
+        react_db.load_ron_file(&mat_db, "assets_test/reactions_test_invalid_in_a.ron").unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid material reference")]
+    fn test_invalid_ron_safety_in_b() {
+        let mut mat_db = MaterialDb::new();
+        mat_db.load_ron_file("assets_test/materials_test.ron").unwrap();
+        let mut react_db = ReactionDb::new();
+
+        // Ensure panic when invalid in_b material is referenced.
+        react_db.load_ron_file(&mat_db, "assets_test/reactions_test_invalid_in_b.ron").unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid material reference")]
+    fn test_invalid_ron_safety_out_a() {
+        let mut mat_db = MaterialDb::new();
+        mat_db.load_ron_file("assets_test/materials_test.ron").unwrap();
+        let mut react_db = ReactionDb::new();
+
+        // Ensure panic when invalid out_a material is referenced.
+        react_db.load_ron_file(&mat_db, "assets_test/reactions_test_invalid_out_a.ron").unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid material reference")]
+    fn test_invalid_ron_safety_out_b() {
+        let mut mat_db = MaterialDb::new();
+        mat_db.load_ron_file("assets_test/materials_test.ron").unwrap();
+        let mut react_db = ReactionDb::new();
+
+        // Ensure panic when invalid out_b material is referenced.
+        react_db.load_ron_file(&mat_db, "assets_test/reactions_test_invalid_out_b.ron").unwrap();
+    }
+
+    #[test]
+    fn test_ensure_db_starts_empty() {
+        let react_db = ReactionDb::new();
+        let count = react_db.defs.len();
+        assert_eq!(count, 0);
+        assert_eq!(react_db.total_material_count, 0);
+    }
+
+    #[test]
+    fn test_get_invalid_id_returns_none() {
+        let react_db = ReactionDb::new();
+        let react_id = react_db.get_id("InvalidReact");
+        assert_eq!(react_id, None);
     }
 }

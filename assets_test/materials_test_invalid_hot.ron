@@ -1,0 +1,12 @@
+{
+    "base:air": (
+        color_raw: (15, 15, 22, 255),
+        diffusivity: 0.05,
+    ),
+    "base:stone": (
+        color_raw: (120, 120, 120, 255),
+        diffusivity: 0.08,
+        transform_hot_mat_name: "base:lava",    // Targets a missing material.
+        transform_hot_temp: 800.0,
+    ),
+}

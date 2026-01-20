@@ -101,10 +101,103 @@ impl MaterialDb {
 
         // Assign material IDs for transforms. (Two passes due to borrow checker.)
         for (mat, (cold, hot)) in self.defs.iter_mut().zip(ids) {
+
+            // Panic if transform reference is invalid (non-empty name but material not found).
+            if !mat.transform_cold_mat_name.is_empty() && cold.is_none() {
+                panic!("Invalid material reference: Material '{}' references missing cold transform material '{}'",
+                       mat.name, mat.transform_cold_mat_name);
+            }
+            if !mat.transform_hot_mat_name.is_empty() && hot.is_none() {
+                panic!("Invalid material reference: Material '{}' references missing hot transform material '{}'",
+                       mat.name, mat.transform_hot_mat_name);
+            }
+
             mat.transform_cold_mat_id = cold;
             mat.transform_hot_mat_id  = hot;
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_ron_file() {
+        let mut mat_db = MaterialDb::new();
+        mat_db.load_ron_file("assets_test/materials_test.ron").unwrap();
+
+        assert_eq!(mat_db.get_mat_count(), 12); // Ensure all materials in test file are loaded.
+
+        {
+            let mat_id_diamond = mat_db.get_id("base:diamond").unwrap();
+            let mat_diamond = mat_db.get(mat_id_diamond).unwrap();
+            let diamond_diff = mat_diamond.diffusivity;
+
+            // Ensure diffusivity is clamped. In test file, Diamond is set to 1.0, which must
+            // be clamped to 0.25 to prevent terrible oscillations and other bugs.
+            assert_eq!(diamond_diff, 0.25);
+
+            // Ensure diffusivity lookup has same clamped value.
+            assert_eq!(mat_db.diffusivity_of(mat_id_diamond), 0.25);
+        }
+
+        {
+            let mat_id_insulation = mat_db.get_id("base:insulation").unwrap();
+            let mat_insulation = mat_db.get(mat_id_insulation).unwrap();
+            let insulation_diff = mat_insulation.diffusivity;
+
+            // Ensure diffusivity is clamped. In test file, Insulation is set to -1.0,
+            // which must be clamped to 0.0 to prevent bugs.
+            assert_eq!(insulation_diff, 0.0);
+
+            // Ensure diffusivity lookup has same clamped value.
+            assert_eq!(mat_db.diffusivity_of(mat_id_insulation), 0.0);
+        }
+
+        {
+            let mat_id_water = mat_db.get_id("base:water").unwrap();
+            let mat_water = mat_db.get(mat_id_water).unwrap();
+            let mat_id_steam = mat_db.get_id("base:steam").unwrap();
+            let mat_steam = mat_db.get(mat_id_steam).unwrap();
+
+            // Ensure transforms link to materials correctly.
+            assert_eq!(mat_water.transform_hot_mat_id, Some(mat_id_steam));
+            assert_eq!(mat_steam.transform_cold_mat_id, Some(mat_id_water));
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid material reference")]
+    fn test_invalid_ron_safety_hot_transform() {
+        let mut mat_db = MaterialDb::new();
+
+        // Ensure panic when invalid hot transform material is referenced.
+        mat_db.load_ron_file("assets_test/materials_test_invalid_hot.ron").unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid material reference")]
+    fn test_invalid_ron_safety_cold_transform() {
+        let mut mat_db = MaterialDb::new();
+
+        // Ensure panic when invalid cold transform material is referenced.
+        mat_db.load_ron_file("assets_test/materials_test_invalid_cold.ron").unwrap();
+    }
+    
+    #[test]
+    fn test_ensure_db_starts_empty() {
+        let mat_db = MaterialDb::new();
+        let count = mat_db.get_mat_count();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_get_invalid_id_returns_none() {
+        let mat_db = MaterialDb::new();
+        let material_id = mat_db.get_id("InvalidMat");
+        assert_eq!(material_id, None);
     }
 }
