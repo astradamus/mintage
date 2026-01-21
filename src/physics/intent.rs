@@ -10,7 +10,7 @@ pub(crate) enum CellIntent {
         cell: (usize, usize),
         out: MaterialId,
     },
-    Reaction {
+    Reaction {  // Distinct from Transform because they are atomic and cannot partially complete.
         cell_a: (usize, usize),
         cell_b: (usize, usize),
         out_a: MaterialId,
