@@ -77,7 +77,11 @@ impl MaterialDb {
 
     pub fn load_ron_file(&mut self, path: &str) -> Result<()> {
         let text = fs::read_to_string(path)?;
-        let mut map: HashMap<String, Material> = from_str(&text)?;
+        self.load_ron_str(&text)
+    }
+
+    pub fn load_ron_str(&mut self, text: &str) -> Result<()> {
+        let mut map: HashMap<String, Material> = from_str(text)?;
 
         // Build defs from loaded string.
         for (name, mut mat) in map.drain() {
