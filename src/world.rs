@@ -37,6 +37,8 @@ impl World {
         self.entities.sync();
     }
 
+    /// Remember that if you are manually calling this for any reason (like testing),
+    /// you will probably also want to call `sync_all` after!
     pub fn swap_all(&mut self) {
         self.cell_mat_ids.swap();
         self.cell_temps.swap();
